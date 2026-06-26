@@ -760,7 +760,7 @@
       display: none;
     }
 
-    .row-label {
+    .gantt-labels {
       display: none;
     }
 
