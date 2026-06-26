@@ -3,25 +3,22 @@ import { query } from '@ydbjs/query';
 import { MetadataCredentialsProvider } from '@ydbjs/auth/metadata';
 import { AccessTokenCredentialsProvider } from '@ydbjs/auth/access-token';
 
+// Используем динамические переменные окружения, чтобы сборка не падала
+// на Vercel, где YDB-переменные не заданы.
 // SvelteKit автоматически подхватывает переменные из .env
-// и делает их доступными через $env/static/private
-import {
-  YDB_ENDPOINT,
-  YDB_DATABASE,
-  YDB_CONNECTION_STRING,
-  YDB_ACCESS_TOKEN_CREDENTIALS,
-} from '$env/static/private';
+// и делает их доступными через $env/dynamic/private
+import { env } from '$env/dynamic/private';
 
 /**
  * Собирает connection string из переменных окружения.
  * Приоритет: YDB_CONNECTION_STRING > YDB_ENDPOINT + YDB_DATABASE
  */
 function buildConnectionString() {
-  if (YDB_CONNECTION_STRING) {
-    return YDB_CONNECTION_STRING;
+  if (env.YDB_CONNECTION_STRING) {
+    return env.YDB_CONNECTION_STRING;
   }
-  if (YDB_ENDPOINT && YDB_DATABASE) {
-    return `grpcs://${YDB_ENDPOINT}:2135/?database=${YDB_DATABASE}`;
+  if (env.YDB_ENDPOINT && env.YDB_DATABASE) {
+    return `grpcs://${env.YDB_ENDPOINT}:2135/?database=${env.YDB_DATABASE}`;
   }
   return '';
 }
@@ -32,9 +29,9 @@ function buildConnectionString() {
  * Иначе — MetadataCredentialsProvider (для Yandex Cloud Functions / VM).
  */
 function getCredentialsProvider() {
-  if (YDB_ACCESS_TOKEN_CREDENTIALS) {
+  if (env.YDB_ACCESS_TOKEN_CREDENTIALS) {
     return new AccessTokenCredentialsProvider({
-      token: YDB_ACCESS_TOKEN_CREDENTIALS,
+      token: env.YDB_ACCESS_TOKEN_CREDENTIALS,
     });
   }
   return new MetadataCredentialsProvider();

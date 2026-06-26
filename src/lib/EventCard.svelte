@@ -19,7 +19,8 @@
     return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
   }
 
-  const lightColor = lightenColor(color);
+  // Используем $derived, чтобы lightColor реактивно обновлялся при изменении color
+  let lightColor = $derived(lightenColor(color));
 
   function formatDate(value) {
     const d = new Date(value);
