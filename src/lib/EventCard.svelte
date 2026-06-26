@@ -79,7 +79,6 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     cursor: pointer;
     position: relative;
-    overflow: hidden;
     transition: box-shadow 0.15s, transform 0.1s;
     user-select: none;
     -webkit-user-select: none;
@@ -115,15 +114,23 @@
 
   /* Контент поверх фона */
   .card-content {
-    position: relative;
-    z-index: 1;
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 2;
     padding: 0.25rem 0.5rem;
     display: flex;
     flex-direction: column;
     justify-content: center;
     gap: 0.1rem;
-    height: 100%;
     box-sizing: border-box;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 0.3rem;
+    min-width: max-content;
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.06);
+    pointer-events: none;
+    transition: left 0.15s ease-out;
   }
 
   .event-title {
@@ -131,8 +138,6 @@
     font-size: 0.7rem;
     color: #0f172a;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     line-height: 1.2;
   }
 

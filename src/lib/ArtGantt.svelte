@@ -346,6 +346,7 @@
 
   // ─── Синхронизация скролла ───────────────────────────────────
   let headerScrollEl = $state(null);
+  let headerCornerEl = $state(null);
   let ganttBodyEl = $state(null);
   let isSyncing = false;
 
@@ -354,6 +355,7 @@
     isSyncing = true;
     ganttBodyEl.scrollLeft = headerScrollEl?.scrollLeft ?? 0;
     isSyncing = false;
+    updateStickyLabels();
   }
 
   function handleBodyScroll() {
@@ -361,6 +363,48 @@
     isSyncing = true;
     headerScrollEl.scrollLeft = ganttBodyEl.scrollLeft;
     isSyncing = false;
+    updateStickyLabels();
+  }
+
+  function updateStickyLabels() {
+    if (!ganttBodyEl) return;
+    const containerRect = ganttBodyEl.getBoundingClientRect();
+
+    // Sticky для карточек ивентов
+    const cards = ganttBodyEl.querySelectorAll('.event-card');
+    for (const card of cards) {
+      const content = card.querySelector('.card-content');
+      if (content) {
+        const cardRect = card.getBoundingClientRect();
+        const minOffset = Math.max(0, containerRect.left - cardRect.left);
+        const contentWidth = content.offsetWidth;
+        const cardWidth = cardRect.width;
+        const maxOffset = Math.max(0, cardWidth - contentWidth);
+        const offset = Math.min(minOffset, maxOffset);
+        content.style.left = offset + 'px';
+      }
+    }
+
+    // Sticky для названий месяцев в шапке
+    if (headerScrollEl) {
+      // Точка прилипания — правый край колонки "Категория" (или левый край скролла, если колонки нет)
+      const stickyLeft = headerCornerEl
+        ? headerCornerEl.getBoundingClientRect().right
+        : headerScrollEl.getBoundingClientRect().left;
+      const monthLabels = headerScrollEl.querySelectorAll('.timescale-month-label');
+      for (const label of monthLabels) {
+        const monthEl = label.closest('.timescale-month');
+        if (monthEl) {
+          const monthRect = monthEl.getBoundingClientRect();
+          const labelWidth = label.offsetWidth;
+          const monthWidth = monthRect.width;
+          const minOffset = Math.max(0, stickyLeft - monthRect.left);
+          const maxOffset = Math.max(0, monthWidth - labelWidth);
+          const offset = Math.min(minOffset, maxOffset);
+          label.style.left = offset + 'px';
+        }
+      }
+    }
   }
 
   // ─── Высота контейнера ───────────────────────────────────────
@@ -374,11 +418,13 @@
     if (ganttBodyEl && !loading && !initialScrolled) {
       initialScrolled = true;
       requestAnimationFrame(() => {
-        ganttBodyEl.scrollLeft = scrollToCurrentMonth;
+        ganttBodyEl.scrollLeft = scrollToCurrentMonth + 800;
         // Синхронизируем хедер
         if (headerScrollEl) {
-          headerScrollEl.scrollLeft = scrollToCurrentMonth;
+          headerScrollEl.scrollLeft = scrollToCurrentMonth + 800;
         }
+        // Вызываем sticky-эффект после скролла
+        setTimeout(() => updateStickyLabels(), 100);
       });
     }
   });
@@ -427,7 +473,7 @@
         bind:this={headerScrollEl}
         onscroll={handleHeaderScroll}
       >
-        <div class="header-corner">
+        <div class="header-corner" bind:this={headerCornerEl}>
           <span class="header-corner-text">Категория</span>
         </div>
         <div class="header-timescale" style="width: {TOTAL_DAYS * DAY_WIDTH}px">
@@ -438,18 +484,7 @@
                 class="timescale-month"
                 style="width: {month.days.length * DAY_WIDTH}px"
               >
-                {month.label}
-              </div>
-            {/each}
-          </div>
-          <!-- Строка недель -->
-          <div class="timescale-weeks">
-            {#each weeks as week}
-              <div
-                class="timescale-week"
-                style="width: {week.days.length * DAY_WIDTH}px"
-              >
-                {week.label}
+                <span class="timescale-month-label">{month.label}</span>
               </div>
             {/each}
           </div>
@@ -604,29 +639,23 @@
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    justify-content: center;
     font-size: 0.8rem;
     font-weight: 700;
     color: #334155;
     border-right: 1px solid #e2e8f0;
     text-transform: capitalize;
+    position: relative;
   }
 
-  .timescale-weeks {
-    display: flex;
-    height: 28px;
-    border-bottom: 1px solid #e2e8f0;
-  }
-
-  .timescale-week {
-    flex-shrink: 0;
+  .timescale-month-label {
+    position: relative;
+    z-index: 5;
+    background: #f1f5f9;
+    padding: 0 10px;
+    height: 100%;
     display: flex;
     align-items: center;
-    padding-left: 8px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #64748b;
-    border-right: 1px solid #f1f5f9;
+    white-space: nowrap;
   }
 
   .timescale-days {
