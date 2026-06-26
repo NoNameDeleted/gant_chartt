@@ -48,21 +48,33 @@
   {ondblclick}
   onkeydown={handleKeyDown}
 >
-  <!-- Двухцветный фон -->
-  <div
-    class="card-bg-segment card-bg-active"
-    style="background: {color}; width: {endPortion * 100}%"
-  ></div>
-  <div
-    class="card-bg-segment card-bg-deadline"
-    style="background: {lightColor}; width: {(1 - endPortion) * 100}%"
-  ></div>
+  <!-- Двухцветный фон: если есть набор — левая часть яркая, правая светлая -->
+  {#if event.hasSet}
+    <div
+      class="card-bg-segment card-bg-active"
+      style="background: {color}; width: {endPortion * 100}%"
+    ></div>
+    <div
+      class="card-bg-segment card-bg-deadline"
+      style="background: {lightColor}; width: {(1 - endPortion) * 100}%"
+    ></div>
+  {:else}
+    <!-- Если набора нет — весь ивент яркого цвета -->
+    <div
+      class="card-bg-segment card-bg-active"
+      style="background: {color}; width: 100%"
+    ></div>
+  {/if}
 
   <!-- Контент поверх фона -->
   <div class="card-content">
     <div class="event-title">{event.text}</div>
     <div class="event-meta">
-      <span class="event-date">{formatDate(event.start)} — {formatDate(event.end)}</span>
+      {#if event.hasSet}
+        <span class="event-date">{formatDate(event.start)} — {formatDate(event.end)}</span>
+      {:else}
+        <span class="event-date">{formatDate(event.start)}</span>
+      {/if}
       <span class="event-deadline">⏱{formatDate(event.deadline)}</span>
     </div>
   </div>

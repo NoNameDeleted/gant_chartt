@@ -5,13 +5,14 @@
 
   // ─── Категории ───────────────────────────────────────────────
   const categories = [
+    { id: "open коллаб",    label: "Open коллаб",      color: "#0ea5e9" },
     { id: "dtiys",          label: "DTIYS",            color: "#6366f1" },
     { id: "палитра",        label: "Палитра",          color: "#ec4899" },
     { id: "мудборд",        label: "Мудборд",          color: "#f59e0b" },
     { id: "один арт",       label: "Один арт",         color: "#10b981" },
     { id: "сломанный планшет", label: "Слом. планшет", color: "#ef4444" },
     { id: "фейк коллаб",    label: "Фейк коллаб",      color: "#8b5cf6" },
-    { id: "open коллаб",    label: "Open коллаб",      color: "#0ea5e9" },
+    { id: "хуманизация",    label: "Хуманизация",      color: "#0ea5e9" },
   ];
 
   // ─── Ивенты ──────────────────────────────────────────────────
@@ -48,19 +49,19 @@
   // ─── Тестовые данные (если YDB недоступен) ───────────────────
   function getFallbackEvents() {
     return [
-      { id: 1,  category: "dtiys",          text: "Море иллюстраций",     start: new Date(2026, 5, 1),  end: new Date(2026, 5, 7),  deadline: new Date(2026, 5, 10), link: "https://example.com/dtiys",          progress: 0 },
-      { id: 2,  category: "dtiys",          text: "Космический пейзаж",   start: new Date(2026, 5, 10), end: new Date(2026, 5, 17), deadline: new Date(2026, 5, 20), link: "https://example.com/dtiys2",         progress: 0 },
-      { id: 3,  category: "палитра",        text: "Розовый неон",         start: new Date(2026, 5, 4),  end: new Date(2026, 5, 11), deadline: new Date(2026, 5, 14), link: "https://example.com/palette",        progress: 0 },
-      { id: 4,  category: "палитра",        text: "Закатные тона",        start: new Date(2026, 5, 15), end: new Date(2026, 5, 22), deadline: new Date(2026, 5, 25), link: "https://example.com/palette2",       progress: 0 },
-      { id: 5,  category: "мудборд",        text: "Киберпанк лето",       start: new Date(2026, 5, 2),  end: new Date(2026, 5, 6),  deadline: new Date(2026, 5, 8),  link: "https://example.com/moodboard",      progress: 0 },
-      { id: 6,  category: "один арт",       text: "Утро в лесу",          start: new Date(2026, 5, 5),  end: new Date(2026, 5, 12), deadline: new Date(2026, 5, 15), link: "https://example.com/art",            progress: 0 },
-      { id: 7,  category: "один арт",       text: "Горный пейзаж",        start: new Date(2026, 5, 18), end: new Date(2026, 5, 25), deadline: new Date(2026, 5, 28), link: "https://example.com/art2",           progress: 0 },
-      { id: 8,  category: "сломанный планшет", text: "Перезагрузка",      start: new Date(2026, 5, 6),  end: new Date(2026, 5, 9),  deadline: new Date(2026, 5, 12), link: "https://example.com/broken-tablet",  progress: 0 },
-      { id: 9,  category: "фейк коллаб",    text: "Дикий эксперимент",    start: new Date(2026, 5, 8),  end: new Date(2026, 5, 13), deadline: new Date(2026, 5, 16), link: "https://example.com/fake-collab",    progress: 0 },
-      { id: 10, category: "open коллаб",    text: "Свободная тема",       start: new Date(2026, 5, 10), end: new Date(2026, 5, 17), deadline: new Date(2026, 5, 20), link: "https://example.com/open-collab",    progress: 0 },
-      { id: 11, category: "open коллаб",    text: "Стимпанк",             start: new Date(2026, 5, 22), end: new Date(2026, 5, 29), deadline: new Date(2026, 5, 30), link: "https://example.com/open-collab2",   progress: 0 },
-      { id: 12, category: "dtiys",          text: "Пересекающийся DTIYS", start: new Date(2026, 5, 3),  end: new Date(2026, 5, 13), deadline: new Date(2026, 5, 16), link: "", progress: 0 },
-      { id: 13, category: "палитра",        text: "Пересекающаяся палитра", start: new Date(2026, 5, 6), end: new Date(2026, 5, 16), deadline: new Date(2026, 5, 19), link: "", progress: 0 },
+      { id: 1,  category: "dtiys",          text: "Море иллюстраций",     start: new Date(2026, 5, 1),  end: new Date(2026, 5, 7),  deadline: new Date(2026, 5, 10), link: "https://example.com/dtiys",          progress: 0, hasSet: true },
+      { id: 2,  category: "dtiys",          text: "Космический пейзаж",   start: new Date(2026, 5, 10), end: new Date(2026, 5, 17), deadline: new Date(2026, 5, 20), link: "https://example.com/dtiys2",         progress: 0, hasSet: true },
+      { id: 3,  category: "палитра",        text: "Розовый неон",         start: new Date(2026, 5, 4),  end: new Date(2026, 5, 11), deadline: new Date(2026, 5, 14), link: "https://example.com/palette",        progress: 0, hasSet: true },
+      { id: 4,  category: "палитра",        text: "Закатные тона",        start: new Date(2026, 5, 15), end: new Date(2026, 5, 22), deadline: new Date(2026, 5, 25), link: "https://example.com/palette2",       progress: 0, hasSet: true },
+      { id: 5,  category: "мудборд",        text: "Киберпанк лето",       start: new Date(2026, 5, 2),  end: new Date(2026, 5, 6),  deadline: new Date(2026, 5, 8),  link: "https://example.com/moodboard",      progress: 0, hasSet: true },
+      { id: 6,  category: "один арт",       text: "Утро в лесу",          start: new Date(2026, 5, 5),  end: new Date(2026, 5, 12), deadline: new Date(2026, 5, 15), link: "https://example.com/art",            progress: 0, hasSet: true },
+      { id: 7,  category: "один арт",       text: "Горный пейзаж",        start: new Date(2026, 5, 18), end: new Date(2026, 5, 25), deadline: new Date(2026, 5, 28), link: "https://example.com/art2",           progress: 0, hasSet: true },
+      { id: 8,  category: "сломанный планшет", text: "Перезагрузка",      start: new Date(2026, 5, 6),  end: new Date(2026, 5, 9),  deadline: new Date(2026, 5, 12), link: "https://example.com/broken-tablet",  progress: 0, hasSet: true },
+      { id: 9,  category: "фейк коллаб",    text: "Дикий эксперимент",    start: new Date(2026, 5, 8),  end: new Date(2026, 5, 13), deadline: new Date(2026, 5, 16), link: "https://example.com/fake-collab",    progress: 0, hasSet: true },
+      { id: 10, category: "open коллаб",    text: "Свободная тема",       start: new Date(2026, 5, 10), end: new Date(2026, 5, 17), deadline: new Date(2026, 5, 20), link: "https://example.com/open-collab",    progress: 0, hasSet: true },
+      { id: 11, category: "open коллаб",    text: "Стимпанк",             start: new Date(2026, 5, 22), end: new Date(2026, 5, 29), deadline: new Date(2026, 5, 30), link: "https://example.com/open-collab2",   progress: 0, hasSet: true },
+      { id: 12, category: "dtiys",          text: "Пересекающийся DTIYS", start: new Date(2026, 5, 3),  end: new Date(2026, 5, 13), deadline: new Date(2026, 5, 16), link: "", progress: 0, hasSet: true },
+      { id: 13, category: "палитра",        text: "Пересекающаяся палитра", start: new Date(2026, 5, 6), end: new Date(2026, 5, 16), deadline: new Date(2026, 5, 19), link: "", progress: 0, hasSet: true },
     ];
   }
 
@@ -246,6 +247,7 @@
     start: "",
     end: "",
     deadline: "",
+    hasSet: true,
   });
 
   function formatDate(date) {
@@ -262,6 +264,7 @@
       form.start = formatDate(event.start);
       form.end = formatDate(event.end);
       form.deadline = formatDate(event.deadline);
+      form.hasSet = event.hasSet ?? true;
     } else {
       editingEvent = null;
       form.id = Date.now();
@@ -271,6 +274,7 @@
       form.start = formatDate(new Date());
       form.end = formatDate(new Date(Date.now() + 6 * DAY_MS));
       form.deadline = formatDate(new Date(Date.now() + 10 * DAY_MS));
+      form.hasSet = true;
     }
     editorOpen = true;
   }
@@ -286,9 +290,10 @@
       category: form.category,
       link: form.link,
       start: new Date(form.start),
-      end: new Date(form.end),
+      end: form.hasSet ? new Date(form.end) : new Date(form.start),
       deadline: new Date(form.deadline),
       progress: 0,
+      hasSet: form.hasSet,
     };
 
     if (editingEvent) {
@@ -304,22 +309,45 @@
     syncEvents();
   }
 
+  async function deleteEvent() {
+    if (!editingEvent) return;
+
+    const id = editingEvent.id;
+
+    // Удаляем из локального массива
+    events = events.filter((e) => e.id !== id);
+
+    editorOpen = false;
+
+    // Удаляем из YDB
+    try {
+      const res = await fetch("/api/events", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error(`Ошибка удаления: ${res.status}`);
+    } catch (err) {
+      console.error("Ошибка удаления ивента из YDB:", err);
+    }
+  }
+
   // ─── Обработчики для ивентов ─────────────────────────────────
-  let longPressTimer = null;
+  let eventLongPressTimer = null;
 
   function handleEventPointerDown(event, evt) {
     event.stopPropagation();
-    if (longPressTimer) clearTimeout(longPressTimer);
-    longPressTimer = setTimeout(() => {
+    if (eventLongPressTimer) clearTimeout(eventLongPressTimer);
+    eventLongPressTimer = setTimeout(() => {
       openEditor(evt);
     }, 600);
   }
 
   function handleEventPointerUp(event) {
     if (event) event.stopPropagation();
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
+    if (eventLongPressTimer) {
+      clearTimeout(eventLongPressTimer);
+      eventLongPressTimer = null;
     }
   }
 
@@ -330,17 +358,29 @@
   }
 
   // ─── Обработчики для пустого места ───────────────────────────
+  let emptyLongPressTimer = null;
+
   function handleEmptyPointerDown(event) {
-    if (longPressTimer) clearTimeout(longPressTimer);
-    longPressTimer = setTimeout(() => {
+    // Отменяем скролл/контекстное меню браузера при долгом нажатии
+    event.preventDefault();
+    if (emptyLongPressTimer) clearTimeout(emptyLongPressTimer);
+    emptyLongPressTimer = setTimeout(() => {
       openEditor();
     }, 600);
   }
 
+  function handleEmptyPointerMove(event) {
+    // Если палец/курсор сдвинулся — отменяем долгое нажатие (это скролл)
+    if (emptyLongPressTimer) {
+      clearTimeout(emptyLongPressTimer);
+      emptyLongPressTimer = null;
+    }
+  }
+
   function handleEmptyPointerUp() {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
+    if (emptyLongPressTimer) {
+      clearTimeout(emptyLongPressTimer);
+      emptyLongPressTimer = null;
     }
   }
 
@@ -450,6 +490,7 @@
         {editingEvent}
         onsave={saveEvent}
         onclose={closeEditor}
+        ondelete={deleteEvent}
       />
     {/if}
 
@@ -529,19 +570,23 @@
       >
         {#each categories as cat}
           {@const catData = eventsByCategory[cat.id]}
+          <!-- onpointerdown на gantt-row, чтобы вся область строки реагировала на долгое нажатие -->
           <div
             class="gantt-row"
+            role="region"
+            aria-label="Строка категории {cat.label}"
             style="min-height: {Math.max(catData.totalLanes * LANE_HEIGHT + 16, 60)}px"
+            onpointerdown={handleEmptyPointerDown}
+            onpointermove={handleEmptyPointerMove}
+            onpointerup={handleEmptyPointerUp}
+            onpointerleave={handleEmptyPointerUp}
+            onpointercancel={handleEmptyPointerUp}
           >
             <div
               class="row-events"
               role="region"
               aria-label="События категории {cat.label}"
               style="width: {TOTAL_DAYS * DAY_WIDTH}px; min-width: {TOTAL_DAYS * DAY_WIDTH}px"
-              onpointerdown={handleEmptyPointerDown}
-              onpointerup={handleEmptyPointerUp}
-              onpointerleave={handleEmptyPointerUp}
-              onpointercancel={handleEmptyPointerUp}
             >
               {#each catData.lanes as lane, laneIdx}
                 {#each lane as evt (evt.id)}
@@ -697,10 +742,15 @@
     flex: 1;
     overflow-x: auto;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
   }
 
   .gantt-row {
     border-bottom: 1px solid #f1f5f9;
+    touch-action: none;
+    width: fit-content;
+    min-width: 100%;
   }
 
   .gantt-row:last-child {

@@ -97,6 +97,7 @@ async function main() {
       "end"    Timestamp,
       deadline Timestamp,
       progress Double,
+      has_set  Bool,
       PRIMARY KEY (id)
     )
   `;
@@ -107,10 +108,11 @@ async function main() {
   console.log('  category   Utf8       — категория (dtiys, палитра, ...)');
   console.log('  text       Utf8       — название ивента');
   console.log('  link       Utf8       — ссылка на пост');
-  console.log('  start      Timestamp  — начало набора');
-  console.log('  end        Timestamp  — конец набора');
+  console.log('  start      Timestamp  — начало ивента');
+  console.log('  end        Timestamp  — конец набора (если has_set)');
   console.log('  deadline   Timestamp  — дедлайн работ');
   console.log('  progress   Double     — прогресс (0.0)');
+  console.log('  has_set    Bool       — есть набор (true = 3 даты, false = 2 даты)');
   console.log('  PRIMARY KEY (id)');
 
   await driver.close();

@@ -93,19 +93,39 @@ function dateToTs(value) {
 export async function loadEvents() {
   const ydb = await getYdb();
 
-  const resultSets = await ydb`
-    SELECT
-      id,
-      category,
-      text,
-      link,
-      start,
-      \`end\`,
-      deadline,
-      progress
-    FROM events
-    ORDER BY id
-  `;
+  // Пробуем прочитать has_set. Если колонки нет — YDB вернёт ошибку,
+  // ловим её и делаем SELECT без has_set.
+  let resultSets;
+  try {
+    resultSets = await ydb`
+      SELECT
+        id,
+        category,
+        text,
+        link,
+        start,
+        \`end\`,
+        deadline,
+        progress,
+        has_set
+      FROM events
+      ORDER BY id
+    `;
+  } catch {
+    resultSets = await ydb`
+      SELECT
+        id,
+        category,
+        text,
+        link,
+        start,
+        \`end\`,
+        deadline,
+        progress
+      FROM events
+      ORDER BY id
+    `;
+  }
 
   const rows = resultSets[0] || [];
 
@@ -118,7 +138,25 @@ export async function loadEvents() {
     end: new Date(row.end),
     deadline: new Date(row.deadline),
     progress: row.progress ?? 0,
+    hasSet: row.has_set ?? true,
   }));
+}
+
+/**
+ * Добавляет колонку has_set в таблицу events, если её ещё нет.
+ * Вызывается перед первым UPSERT-ом с has_set.
+ */
+let hasSetColumnEnsured = false;
+
+async function ensureHasSetColumn() {
+  if (hasSetColumnEnsured) return;
+  const ydb = await getYdb();
+  try {
+    await ydb`ALTER TABLE events ADD COLUMN has_set Bool`;
+  } catch {
+    // колонка уже существует — игнорируем
+  }
+  hasSetColumnEnsured = true;
 }
 
 /**
@@ -128,8 +166,10 @@ export async function loadEvents() {
 export async function saveEvent(event) {
   const ydb = await getYdb();
 
+  await ensureHasSetColumn();
+
   await ydb`
-    UPSERT INTO events (id, category, text, link, start, \`end\`, deadline, progress)
+    UPSERT INTO events (id, category, text, link, start, \`end\`, deadline, progress, has_set)
     VALUES (
       ${BigInt(event.id)},
       ${event.category},
@@ -138,7 +178,8 @@ export async function saveEvent(event) {
       ${dateToTs(event.start)},
       ${dateToTs(event.end)},
       ${dateToTs(event.deadline)},
-      ${event.progress ?? 0}
+      ${event.progress ?? 0},
+      ${event.hasSet ?? true}
     )
   `;
 }
@@ -164,12 +205,14 @@ export async function deleteEvent(id) {
 export async function saveAllEvents(events) {
   const ydb = await getYdb();
 
+  await ensureHasSetColumn();
+
   await ydb.begin(async (tx) => {
     await tx`DELETE FROM events`;
 
     for (const event of events) {
       await tx`
-        UPSERT INTO events (id, category, text, link, start, \`end\`, deadline, progress)
+        UPSERT INTO events (id, category, text, link, start, \`end\`, deadline, progress, has_set)
         VALUES (
           ${BigInt(event.id)},
           ${event.category},
@@ -178,7 +221,8 @@ export async function saveAllEvents(events) {
           ${dateToTs(event.start)},
           ${dateToTs(event.end)},
           ${dateToTs(event.deadline)},
-          ${event.progress ?? 0}
+          ${event.progress ?? 0},
+          ${event.hasSet ?? true}
         )
       `;
     }
