@@ -1,32 +1,26 @@
 /**
  * IamTokenProvider — провайдер аутентификации для YDB,
- * который автоматически обновляет IAM-токен через API-ключ сервисного аккаунта.
+ * который автоматически обновляет IAM-токен через JWT-аутентификацию
+ * сервисного аккаунта Yandex Cloud.
  *
- * API-ключ сервисного аккаунта Yandex Cloud — статический и не протухает.
- * Это перманентное решение, не требующее регулярного обновления токена.
+ * Как это работает:
+ *   1. Вы создаёте авторизованный ключ для сервисного аккаунта
+ *   2. Ключ (JSON с приватным ключом RSA) сохраняете в переменную YDB_SA_KEY_JSON
+ *   3. Провайдер подписывает JWT этим ключом и обменивает на IAM-токен
+ *   4. Токен автоматически обновляется раз в ~11 часов
  *
- * Как получить API-ключ:
- *   1. Создайте сервисный аккаунт в Yandex Cloud
- *   2. Выдайте ему роль ydb.editor на нужную БД
- *   3. Создайте API-ключ: yc iam api-key create --service-account-name <имя>
- *   4. Скопируйте secret из вывода команды (начинается с AQVN...)
- *   5. Установите переменную окружения YDB_SERVICE_ACCOUNT_API_KEY
+ * Авторизованный ключ НЕ ПРОТУХАЕТ — это перманентное решение.
  *
- * Альтернатива (если нет API-ключа):
- *   Используйте YDB_ACCESS_TOKEN_CREDENTIALS с IAM-токеном,
- *   полученным через yc iam create-token (живёт 12 часов, требует обновления)
+ * Как получить ключ:
+ *   yc iam key create --service-account-name <имя> --output sa-key.json
+ *   cat sa-key.json | pbcopy  # или clip, или вручную
+ *   Установите содержимое в YDB_SA_KEY_JSON на Vercel
  */
 
 import { CredentialsProvider } from '@ydbjs/auth';
+import jwt from 'jsonwebtoken';
 import { env } from '$env/dynamic/private';
 
-/**
- * Endpoint для обмена API-ключа сервисного аккаунта на IAM-токен.
- * ВАЖНО: это НЕ тот же endpoint, что для OAuth-токена!
- * Для API-ключей сервисных аккаунтов используется
- * https://iam.api.cloud.yandex.net/iam/v1/tokens?serviceAccount=true
- * или заголовок Authorization: Bearer <api_key>
- */
 const IAM_TOKEN_URL = 'https://iam.api.cloud.yandex.net/iam/v1/tokens';
 
 /**
@@ -39,34 +33,61 @@ const IAM_TOKEN_URL = 'https://iam.api.cloud.yandex.net/iam/v1/tokens';
 let cachedToken = null;
 
 /**
- * Обменивает API-ключ сервисного аккаунта на IAM-токен.
+ * Создаёт JWT для аутентификации сервисного аккаунта.
  *
- * Для API-ключа сервисного аккаунта нужно использовать endpoint
- * iam.api.cloud.yandex.net/iam/v1/tokens с параметром
- * ?serviceAccount=true и передавать apiKey в теле как yandexPassportOauthToken.
+ * @param {Object} saKey — авторизованный ключ сервисного аккаунта
+ * @param {string} saKey.id — идентификатор ключа
+ * @param {string} saKey.service_account_id — ID сервисного аккаунта
+ * @param {string} saKey.private_key — приватный ключ RSA
+ * @returns {string} — подписанный JWT
+ */
+function createJwt(saKey) {
+  const now = Math.floor(Date.now() / 1000);
+
+  const payload = {
+    aud: 'https://iam.api.cloud.yandex.net/iam/v1/tokens',
+    iss: saKey.service_account_id,
+    iat: now,
+    exp: now + 3600, // JWT живёт 1 час
+  };
+
+  const options = {
+    algorithm: 'PS256',
+    keyid: saKey.id,
+  };
+
+  return jwt.sign(payload, saKey.private_key, /** @type {import('jsonwebtoken').SignOptions} */ (options));
+}
+
+/**
+ * Обменивает JWT на IAM-токен через Yandex Cloud IAM API.
  *
- * @param {string} apiKey — secret API-ключа сервисного аккаунта (начинается с AQVN...)
+ * @param {Object} saKey — авторизованный ключ сервисного аккаунта
  * @returns {Promise<CachedToken>}
  */
-async function exchangeApiKey(apiKey) {
-  const url = IAM_TOKEN_URL + '?serviceAccount=true';
-  const response = await fetch(url, {
+/**
+ * @param {any} saKey
+ */
+async function exchangeJwt(saKey) {
+  const assertion = createJwt(saKey);
+
+  const response = await fetch(IAM_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ yandexPassportOauthToken: apiKey }),
+    body: JSON.stringify({ jwt: assertion }),
   });
 
   if (!response.ok) {
     const text = await response.text();
     throw new Error(
-      `Ошибка обмена API-ключа на IAM-токен: ${response.status} ${response.statusText}\n${text}`
+      `Ошибка обмена JWT на IAM-токен: ${response.status} ${response.statusText}\n${text}`
     );
   }
 
   const data = await response.json();
 
-  // IAM-токен живёт 12 часов, но обновляемся за 10 минут до истечения
-  const expiresAt = Date.now() + 11 * 60 * 60 * 1000; // 11 часов
+  // IAM-токен живёт 12 часов, обновляемся за 10 минут до истечения
+  const expiresAt = Date.now() + 11 * 60 * 60 * 1000;
 
   return {
     token: data.iamToken,
@@ -81,37 +102,52 @@ async function exchangeApiKey(apiKey) {
  */
 function needsRefresh(cached) {
   if (!cached) return true;
-  // Обновляем за 10 минут до истечения
   return Date.now() >= cached.expiresAt - 10 * 60 * 1000;
 }
 
 /**
- * Провайдер аутентификации для YDB, использующий статический API-ключ
+ * Провайдер аутентификации для YDB, использующий JWT-аутентификацию
  * сервисного аккаунта Yandex Cloud.
  *
- * Наследуется от CredentialsProvider из @ydbjs/auth, поэтому полностью
+ * Наследуется от CredentialsProvider из @ydbjs/auth, полностью
  * совместим с Driver из @ydbjs/core.
- *
- * Токен автоматически обновляется при истечении (раз в ~11 часов).
- * API-ключ при этом остаётся статическим и не требует обновления.
  *
  * @extends {CredentialsProvider}
  */
 export class IamTokenProvider extends CredentialsProvider {
   /**
-   * @param {string} [apiKey] API-ключ сервисного аккаунта.
-   *   Если не передан, берётся из YDB_SERVICE_ACCOUNT_API_KEY.
+   * @param {any | string} [saKey] авторизованный ключ сервисного аккаунта
+   *   (объект или JSON-строка). Если не передан, берётся из YDB_SA_KEY_JSON.
    */
-  constructor(apiKey) {
+  constructor(saKey) {
     super();
-    this.apiKey = apiKey || env.YDB_SERVICE_ACCOUNT_API_KEY || '';
-    if (!this.apiKey) {
+
+    if (saKey && typeof saKey === 'object') {
+      this.saKey = saKey;
+    } else if (saKey && typeof saKey === 'string') {
+      try {
+        this.saKey = JSON.parse(saKey);
+      } catch {
+        this.saKey = null;
+      }
+    } else if (env.YDB_SA_KEY_JSON) {
+      try {
+        this.saKey = JSON.parse(env.YDB_SA_KEY_JSON);
+      } catch {
+        this.saKey = null;
+      }
+    } else {
+      this.saKey = null;
+    }
+
+    if (!this.saKey) {
       console.warn(
-        '[IamTokenProvider] API-ключ не задан. ' +
-        'Установите YDB_SERVICE_ACCOUNT_API_KEY в переменных окружения.'
+        '[IamTokenProvider] Авторизованный ключ не задан. ' +
+        'Установите YDB_SA_KEY_JSON в переменных окружения.'
       );
     } else {
-      console.log('[IamTokenProvider] API-ключ найден, длина:', this.apiKey.length);
+      console.log('[IamTokenProvider] Авторизованный ключ загружен, SA:',
+        this.saKey.service_account_id);
     }
   }
 
@@ -123,11 +159,12 @@ export class IamTokenProvider extends CredentialsProvider {
    * @returns {Promise<string>}
    */
   async getToken(force, signal) {
-    if (!this.apiKey) {
-      console.error('[IamTokenProvider] YDB_SERVICE_ACCOUNT_API_KEY не задан!');
+    if (!this.saKey) {
       throw new Error(
-        'YDB_SERVICE_ACCOUNT_API_KEY не задан. ' +
-        'Создайте API-ключ сервисного аккаунта и установите переменную YDB_SERVICE_ACCOUNT_API_KEY.'
+        'YDB_SA_KEY_JSON не задан. ' +
+        'Создайте авторизованный ключ сервисного аккаунта: ' +
+        'yc iam key create --service-account-name <имя> --output sa-key.json\n' +
+        'И установите содержимое в переменную YDB_SA_KEY_JSON.'
       );
     }
 
@@ -135,15 +172,10 @@ export class IamTokenProvider extends CredentialsProvider {
       if (signal?.aborted) {
         throw new DOMException('Aborted', 'AbortError');
       }
-      console.log('[IamTokenProvider] Обмениваю API-ключ на IAM-токен...');
-      try {
-        cachedToken = await exchangeApiKey(this.apiKey);
-        console.log('[IamTokenProvider] IAM-токен получен, expiresAt:',
-          new Date(cachedToken.expiresAt).toISOString());
-      } catch (err) {
-        console.error('[IamTokenProvider] Ошибка обмена API-ключа:', err.message);
-        throw err;
-      }
+      console.log('[IamTokenProvider] Обмениваю JWT на IAM-токен...');
+      cachedToken = await exchangeJwt(this.saKey);
+      console.log('[IamTokenProvider] IAM-токен получен, expiresAt:',
+        new Date(cachedToken.expiresAt).toISOString());
     }
 
     return /** @type {CachedToken} */ (cachedToken).token;

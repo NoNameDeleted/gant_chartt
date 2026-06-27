@@ -28,10 +28,10 @@ function buildConnectionString() {
  * Выбирает провайдер аутентификации.
  *
  * Приоритет (от наиболее приоритетного):
- * 1. YDB_API_KEY — статический API-ключ сервисного аккаунта (не протухает).
- *    Используется IamTokenProvider, который автоматически обменивает
- *    API-ключ на IAM-токен и обновляет его при истечении.
- *    Рекомендуемый способ для Vercel и любого продакшена.
+ * 1. YDB_SA_KEY_JSON — авторизованный ключ сервисного аккаунта Yandex Cloud
+ *    (JSON с приватным ключом RSA). НЕ ПРОТУХАЕТ.
+ *    Используется IamTokenProvider, который подписывает JWT и обменивает
+ *    на IAM-токен. Рекомендуемый способ для Vercel.
  *
  * 2. YDB_ACCESS_TOKEN_CREDENTIALS — IAM-токен (живёт 12 часов).
  *    Требует регулярного обновления. Подходит для локальной разработки.
@@ -41,16 +41,16 @@ function buildConnectionString() {
  */
 function getCredentialsProvider() {
   console.log('[ydb] Доступные переменные:',
-    'YDB_API_KEY=', env.YDB_API_KEY ? 'есть (длина: ' + env.YDB_API_KEY.length + ')' : 'нет',
+    'YDB_SA_KEY_JSON=', env.YDB_SA_KEY_JSON ? 'есть (длина: ' + env.YDB_SA_KEY_JSON.length + ')' : 'нет',
     'YDB_ACCESS_TOKEN_CREDENTIALS=', env.YDB_ACCESS_TOKEN_CREDENTIALS ? 'есть' : 'нет',
     'YDB_ENDPOINT=', env.YDB_ENDPOINT || 'нет',
     'YDB_DATABASE=', env.YDB_DATABASE ? 'есть' : 'нет'
   );
 
-  // Приоритет 1: API-ключ сервисного аккаунта (перманентное решение)
-  if (env.YDB_API_KEY) {
-    console.log('[ydb] Выбран IamTokenProvider (API-ключ)');
-    return new IamTokenProvider(env.YDB_API_KEY);
+  // Приоритет 1: авторизованный ключ сервисного аккаунта (перманентное решение)
+  if (env.YDB_SA_KEY_JSON) {
+    console.log('[ydb] Выбран IamTokenProvider (авторизованный ключ)');
+    return new IamTokenProvider(env.YDB_SA_KEY_JSON);
   }
 
   // Приоритет 2: IAM-токен (требует обновления каждые 12 часов)
