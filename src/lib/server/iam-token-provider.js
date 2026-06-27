@@ -9,8 +9,8 @@
  *   1. Создайте сервисный аккаунт в Yandex Cloud
  *   2. Выдайте ему роль ydb.editor на нужную БД
  *   3. Создайте API-ключ: yc iam api-key create --service-account-name <имя>
- *   4. Скопируйте secret из вывода команды
- *   5. Установите переменную окружения YDB_API_KEY
+ *   4. Скопируйте secret из вывода команды (начинается с AQVN...)
+ *   5. Установите переменную окружения YDB_SERVICE_ACCOUNT_API_KEY
  *
  * Альтернатива (если нет API-ключа):
  *   Используйте YDB_ACCESS_TOKEN_CREDENTIALS с IAM-токеном,
@@ -20,6 +20,13 @@
 import { CredentialsProvider } from '@ydbjs/auth';
 import { env } from '$env/dynamic/private';
 
+/**
+ * Endpoint для обмена API-ключа сервисного аккаунта на IAM-токен.
+ * ВАЖНО: это НЕ тот же endpoint, что для OAuth-токена!
+ * Для API-ключей сервисных аккаунтов используется
+ * https://iam.api.cloud.yandex.net/iam/v1/tokens?serviceAccount=true
+ * или заголовок Authorization: Bearer <api_key>
+ */
 const IAM_TOKEN_URL = 'https://iam.api.cloud.yandex.net/iam/v1/tokens';
 
 /**
@@ -32,15 +39,23 @@ const IAM_TOKEN_URL = 'https://iam.api.cloud.yandex.net/iam/v1/tokens';
 let cachedToken = null;
 
 /**
- * Обменивает API-ключ на IAM-токен через Yandex Cloud IAM API.
- * @param {string} apiKey
+ * Обменивает API-ключ сервисного аккаунта на IAM-токен.
+ *
+ * API-ключ сервисного аккаунта отличается от OAuth-токена.
+ * Для его обмена нужно передавать apiKey в заголовке Authorization,
+ * а не в теле запроса как yandexPassportOauthToken.
+ *
+ * @param {string} apiKey — secret API-ключа сервисного аккаунта (начинается с AQVN...)
  * @returns {Promise<CachedToken>}
  */
 async function exchangeApiKey(apiKey) {
   const response = await fetch(IAM_TOKEN_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ yandexPassportOauthToken: apiKey }),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({}),
   });
 
   if (!response.ok) {
@@ -87,15 +102,15 @@ function needsRefresh(cached) {
 export class IamTokenProvider extends CredentialsProvider {
   /**
    * @param {string} [apiKey] API-ключ сервисного аккаунта.
-   *   Если не передан, берётся из YDB_API_KEY.
+   *   Если не передан, берётся из YDB_SERVICE_ACCOUNT_API_KEY.
    */
   constructor(apiKey) {
     super();
-    this.apiKey = apiKey || env.YDB_API_KEY || '';
+    this.apiKey = apiKey || env.YDB_SERVICE_ACCOUNT_API_KEY || '';
     if (!this.apiKey) {
       console.warn(
         '[IamTokenProvider] API-ключ не задан. ' +
-        'Установите YDB_API_KEY в переменных окружения.'
+        'Установите YDB_SERVICE_ACCOUNT_API_KEY в переменных окружения.'
       );
     } else {
       console.log('[IamTokenProvider] API-ключ найден, длина:', this.apiKey.length);
@@ -111,10 +126,10 @@ export class IamTokenProvider extends CredentialsProvider {
    */
   async getToken(force, signal) {
     if (!this.apiKey) {
-      console.error('[IamTokenProvider] YDB_API_KEY не задан!');
+      console.error('[IamTokenProvider] YDB_SERVICE_ACCOUNT_API_KEY не задан!');
       throw new Error(
-        'YDB_API_KEY не задан. ' +
-        'Создайте API-ключ сервисного аккаунта и установите переменную YDB_API_KEY.'
+        'YDB_SERVICE_ACCOUNT_API_KEY не задан. ' +
+        'Создайте API-ключ сервисного аккаунта и установите переменную YDB_SERVICE_ACCOUNT_API_KEY.'
       );
     }
 
