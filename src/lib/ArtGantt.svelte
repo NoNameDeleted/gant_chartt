@@ -356,12 +356,20 @@
   let dragStartScrollLeft = 0;
   let dragTarget = null;
 
+  // Флаг: было ли реальное перемещение во время текущего нажатия
+  let hasDraggedDuringPress = false;
+
   function handleEventPointerDown(event, evt) {
     event.stopPropagation();
+    // Захватываем указатель, чтобы pointermove продолжал приходить даже за пределами карточки
+    event.currentTarget.setPointerCapture(event.pointerId);
     eventLongPressStartX = event.clientX;
     eventLongPressStartY = event.clientY;
+    hasDraggedDuringPress = false;
     if (eventLongPressTimer) clearTimeout(eventLongPressTimer);
     eventLongPressTimer = setTimeout(() => {
+      // Не открываем редактор, если было реальное перетаскивание
+      if (hasDraggedDuringPress) return;
       openEditor(evt);
     }, 600);
 
@@ -399,6 +407,7 @@
     // Завершаем drag-to-scroll
     isDragging = false;
     dragTarget = null;
+    hasDraggedDuringPress = false;
   }
 
   function handleEventPointerMove(event) {
@@ -429,6 +438,8 @@
 
   function handleDragPointerMove(event) {
     if (!isDragging || !dragTarget) return;
+    // Помечаем, что было реальное перетаскивание (чтобы long press не открыл редактор)
+    hasDraggedDuringPress = true;
     const dx = event.clientX - dragStartX;
     dragTarget.scrollLeft = dragStartScrollLeft - dx;
     event.preventDefault();
@@ -440,6 +451,7 @@
     dragTarget.style.cursor = '';
     dragTarget.releasePointerCapture?.(event.pointerId);
     dragTarget = null;
+    hasDraggedDuringPress = false;
     event.preventDefault();
   }
 
