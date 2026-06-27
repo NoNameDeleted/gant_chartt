@@ -111,6 +111,14 @@
     return Math.max(0, (diff / DAY_MS) * DAY_WIDTH);
   });
 
+  // Позиция линии "сегодня" в пикселях от левого края временной шкалы
+  let todayPosition = $derived.by(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diff = today - VIEW_START;
+    return (diff / DAY_MS) * DAY_WIDTH;
+  });
+
   let days = $derived.by(() => {
     const arr = [];
     for (let i = 0; i < TOTAL_DAYS; i++) {
@@ -579,6 +587,8 @@
               </div>
             {/each}
           </div>
+          <!-- Вертикальная линия "сегодня" в шапке -->
+          <div class="today-line-header" style="left: {todayPosition}px"></div>
         </div>
       </div>
     </div>
@@ -620,6 +630,16 @@
             onpointerleave={handleEmptyPointerUp}
             onpointercancel={handleEmptyPointerUp}
           >
+            <!-- Затемнение фона слева от сегодняшней даты (на всю высоту строки) -->
+            <div
+              class="today-shade"
+              style="width: {todayPosition}px"
+            ></div>
+            <!-- Вертикальная линия "сегодня" (на всю высоту строки) -->
+            <div
+              class="today-line"
+              style="left: {todayPosition}px"
+            ></div>
             <div
               class="row-events"
               role="region"
@@ -716,6 +736,10 @@
     display: none;
   }
 
+  .header-timescale {
+    position: relative;
+  }
+
   .timescale-months {
     display: flex;
     height: 28px;
@@ -744,6 +768,17 @@
     display: flex;
     align-items: center;
     white-space: nowrap;
+  }
+
+  /* Вертикальная линия "сегодня" в шапке */
+  .today-line-header {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(100, 116, 139, 0.5);
+    pointer-events: none;
+    z-index: 10;
   }
 
   .timescale-days {
@@ -796,6 +831,7 @@
   }
 
   .gantt-row {
+    position: relative;
     border-bottom: 1px solid #f1f5f9;
     width: fit-content;
     min-width: 100%;
@@ -847,6 +883,28 @@
         #f8fafc 39px,
         #f8fafc 40px
       );
+  }
+
+  /* Затемнение фона слева от сегодняшней даты */
+  .today-shade {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.03);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Вертикальная линия "сегодня" */
+  .today-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: rgba(100, 116, 139, 0.5);
+    pointer-events: none;
+    z-index: 3;
   }
 
   .event-positioner {
