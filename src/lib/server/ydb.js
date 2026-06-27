@@ -2,6 +2,7 @@ import { Driver } from '@ydbjs/core';
 import { query } from '@ydbjs/query';
 import { MetadataCredentialsProvider } from '@ydbjs/auth/metadata';
 import { AccessTokenCredentialsProvider } from '@ydbjs/auth/access-token';
+import { IamTokenProvider } from './iam-token-provider.js';
 
 // Используем динамические переменные окружения, чтобы сборка не падала
 // на Vercel, где YDB-переменные не заданы.
@@ -25,15 +26,33 @@ function buildConnectionString() {
 
 /**
  * Выбирает провайдер аутентификации.
- * Если задан YDB_ACCESS_TOKEN_CREDENTIALS — используем его (локальная разработка / Vercel).
- * Иначе — MetadataCredentialsProvider (для Yandex Cloud Functions / VM).
+ *
+ * Приоритет (от наиболее приоритетного):
+ * 1. YDB_API_KEY — статический API-ключ сервисного аккаунта (не протухает).
+ *    Используется IamTokenProvider, который автоматически обменивает
+ *    API-ключ на IAM-токен и обновляет его при истечении.
+ *    Рекомендуемый способ для Vercel и любого продакшена.
+ *
+ * 2. YDB_ACCESS_TOKEN_CREDENTIALS — IAM-токен (живёт 12 часов).
+ *    Требует регулярного обновления. Подходит для локальной разработки.
+ *
+ * 3. MetadataCredentialsProvider — для Yandex Cloud Functions / VM.
+ *    Работает только внутри Yandex Cloud.
  */
 function getCredentialsProvider() {
+  // Приоритет 1: API-ключ сервисного аккаунта (перманентное решение)
+  if (env.YDB_API_KEY) {
+    return new IamTokenProvider(env.YDB_API_KEY);
+  }
+
+  // Приоритет 2: IAM-токен (требует обновления каждые 12 часов)
   if (env.YDB_ACCESS_TOKEN_CREDENTIALS) {
     return new AccessTokenCredentialsProvider({
       token: env.YDB_ACCESS_TOKEN_CREDENTIALS,
     });
   }
+
+  // Приоритет 3: Metadata service (только внутри Yandex Cloud)
   return new MetadataCredentialsProvider();
 }
 

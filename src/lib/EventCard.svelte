@@ -94,6 +94,7 @@
     transition: box-shadow 0.15s, transform 0.1s;
     user-select: none;
     -webkit-user-select: none;
+    touch-action: manipulation;
   }
 
   .event-card:hover {

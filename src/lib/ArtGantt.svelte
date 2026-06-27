@@ -334,13 +334,27 @@
 
   // ─── Обработчики для ивентов ─────────────────────────────────
   let eventLongPressTimer = null;
+  let eventLongPressStartX = 0;
+  let eventLongPressStartY = 0;
 
   function handleEventPointerDown(event, evt) {
     event.stopPropagation();
+    eventLongPressStartX = event.clientX;
+    eventLongPressStartY = event.clientY;
     if (eventLongPressTimer) clearTimeout(eventLongPressTimer);
     eventLongPressTimer = setTimeout(() => {
       openEditor(evt);
     }, 600);
+  }
+
+  function handleEventPointerMove(event) {
+    if (!eventLongPressTimer) return;
+    const dx = event.clientX - eventLongPressStartX;
+    const dy = event.clientY - eventLongPressStartY;
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+      clearTimeout(eventLongPressTimer);
+      eventLongPressTimer = null;
+    }
   }
 
   function handleEventPointerUp(event) {
@@ -599,6 +613,7 @@
                       color={cat.color}
                       endPortion={getEndPortion(evt)}
                       onpointerdown={(e) => handleEventPointerDown(e, evt)}
+                      onpointermove={handleEventPointerMove}
                       onpointerup={handleEventPointerUp}
                       onpointerleave={handleEventPointerUp}
                       onpointercancel={handleEventPointerUp}
@@ -748,7 +763,6 @@
 
   .gantt-row {
     border-bottom: 1px solid #f1f5f9;
-    touch-action: none;
     width: fit-content;
     min-width: 100%;
   }
