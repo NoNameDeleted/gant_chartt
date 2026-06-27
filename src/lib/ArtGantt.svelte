@@ -350,6 +350,12 @@
   let lastTapTime = 0;
   const DOUBLE_TAP_DELAY = 300; // мс
 
+  // Drag-to-scroll состояние (общее для ивентов и пустых областей)
+  let isDragging = $state(false);
+  let dragStartX = 0;
+  let dragStartScrollLeft = 0;
+  let dragTarget = null;
+
   function handleEventPointerDown(event, evt) {
     event.stopPropagation();
     eventLongPressStartX = event.clientX;
@@ -372,6 +378,16 @@
       lastTapEvent = evt;
       lastTapTime = now;
     }
+
+    // Инициализация drag-to-scroll
+    if (event.button === 0) {
+      isDragging = true;
+      dragStartX = event.clientX;
+      dragTarget = event.currentTarget.closest('.gantt-scroll, .header-timescale-scroll');
+      if (dragTarget) {
+        dragStartScrollLeft = dragTarget.scrollLeft;
+      }
+    }
   }
 
   function handleEventPointerUp(event) {
@@ -380,16 +396,51 @@
       clearTimeout(eventLongPressTimer);
       eventLongPressTimer = null;
     }
+    // Завершаем drag-to-scroll
+    isDragging = false;
+    dragTarget = null;
   }
 
   function handleEventPointerMove(event) {
-    if (!eventLongPressTimer) return;
+    if (!eventLongPressTimer && !isDragging) return;
     const dx = event.clientX - eventLongPressStartX;
     const dy = event.clientY - eventLongPressStartY;
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
       clearTimeout(eventLongPressTimer);
       eventLongPressTimer = null;
     }
+    // Drag-to-scroll
+    if (isDragging && dragTarget) {
+      dragTarget.scrollLeft = dragStartScrollLeft - dx;
+    }
+  }
+
+  // ─── Drag-to-scroll для пустых областей (gantt-scroll и header) ──
+  function handleDragPointerDown(event) {
+    if (event.button !== 0) return;
+    isDragging = true;
+    dragStartX = event.clientX;
+    dragTarget = event.currentTarget;
+    dragStartScrollLeft = dragTarget.scrollLeft;
+    dragTarget.setPointerCapture(event.pointerId);
+    dragTarget.style.cursor = 'grabbing';
+    event.preventDefault();
+  }
+
+  function handleDragPointerMove(event) {
+    if (!isDragging || !dragTarget) return;
+    const dx = event.clientX - dragStartX;
+    dragTarget.scrollLeft = dragStartScrollLeft - dx;
+    event.preventDefault();
+  }
+
+  function handleDragPointerUp(event) {
+    if (!isDragging || !dragTarget) return;
+    isDragging = false;
+    dragTarget.style.cursor = '';
+    dragTarget.releasePointerCapture?.(event.pointerId);
+    dragTarget = null;
+    event.preventDefault();
   }
 
   // ─── Обработчики для пустого места ───────────────────────────
@@ -559,6 +610,11 @@
         class="header-timescale-scroll"
         bind:this={headerScrollEl}
         onscroll={handleHeaderScroll}
+        onpointerdown={handleDragPointerDown}
+        onpointermove={handleDragPointerMove}
+        onpointerup={handleDragPointerUp}
+        onpointerleave={handleDragPointerUp}
+        onpointercancel={handleDragPointerUp}
       >
         <div class="header-corner" bind:this={headerCornerEl}>
           <span class="header-corner-text">Категория</span>
@@ -615,6 +671,11 @@
         class="gantt-scroll"
         bind:this={ganttBodyEl}
         onscroll={handleBodyScroll}
+        onpointerdown={handleDragPointerDown}
+        onpointermove={handleDragPointerMove}
+        onpointerup={handleDragPointerUp}
+        onpointerleave={handleDragPointerUp}
+        onpointercancel={handleDragPointerUp}
       >
         {#each categories as cat}
           {@const catData = eventsByCategory[cat.id]}
@@ -730,6 +791,11 @@
     overflow-y: hidden;
     display: flex;
     scrollbar-width: none;
+    cursor: grab;
+  }
+
+  .header-timescale-scroll:active {
+    cursor: grabbing;
   }
 
   .header-timescale-scroll::-webkit-scrollbar {
@@ -828,6 +894,11 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    cursor: grab;
+  }
+
+  .gantt-scroll:active {
+    cursor: grabbing;
   }
 
   .gantt-row {
