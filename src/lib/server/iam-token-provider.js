@@ -41,21 +41,19 @@ let cachedToken = null;
 /**
  * Обменивает API-ключ сервисного аккаунта на IAM-токен.
  *
- * API-ключ сервисного аккаунта отличается от OAuth-токена.
- * Для его обмена нужно передавать apiKey в заголовке Authorization,
- * а не в теле запроса как yandexPassportOauthToken.
+ * Для API-ключа сервисного аккаунта нужно использовать endpoint
+ * iam.api.cloud.yandex.net/iam/v1/tokens с параметром
+ * ?serviceAccount=true и передавать apiKey в теле как yandexPassportOauthToken.
  *
  * @param {string} apiKey — secret API-ключа сервисного аккаунта (начинается с AQVN...)
  * @returns {Promise<CachedToken>}
  */
 async function exchangeApiKey(apiKey) {
-  const response = await fetch(IAM_TOKEN_URL, {
+  const url = IAM_TOKEN_URL + '?serviceAccount=true';
+  const response = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({}),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ yandexPassportOauthToken: apiKey }),
   });
 
   if (!response.ok) {
