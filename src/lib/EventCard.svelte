@@ -66,17 +66,14 @@
     ></div>
   {/if}
 
-  <!-- Контент поверх фона -->
+  <!-- Контент поверх фона — название и даты в одной строке -->
   <div class="card-content">
-    <div class="event-title">{event.text}</div>
-    <div class="event-meta">
-      {#if event.hasSet}
-        <span class="event-date">{formatDate(event.start)} — {formatDate(event.end)}</span>
-      {:else}
-        <span class="event-date">{formatDate(event.start)}</span>
-      {/if}
-      <span class="event-deadline">⏱{formatDate(event.deadline)}</span>
-    </div>
+    <span class="event-title">{event.text}</span>
+    {#if event.hasSet}
+      <span class="event-dates">({formatDate(event.start)} — {formatDate(event.end)}, ⏱{formatDate(event.deadline)})</span>
+    {:else}
+      <span class="event-dates">({formatDate(event.start)}, ⏱{formatDate(event.deadline)})</span>
+    {/if}
   </div>
 </div>
 
@@ -125,18 +122,18 @@
     opacity: 0.1;
   }
 
-  /* Контент поверх фона */
+  /* Контент поверх фона — строка */
   .card-content {
     position: absolute;
     left: 0;
     top: 0;
     bottom: 0;
     z-index: 2;
-    padding: 0.25rem 0.5rem;
+    padding: 0.2rem 0.5rem;
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 0.1rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.35rem;
     box-sizing: border-box;
     background: rgba(255, 255, 255, 0.95);
     border-radius: 0.3rem;
@@ -148,29 +145,16 @@
 
   .event-title {
     font-weight: 700;
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     color: #0f172a;
     white-space: nowrap;
-    line-height: 1.2;
+    line-height: 1.3;
   }
 
-  .event-meta {
-    display: flex;
-    gap: 0.35rem;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .event-date {
-    font-size: 0.6rem;
-    color: #334155;
+  .event-dates {
+    font-size: 0.7rem;
+    color: #475569;
     white-space: nowrap;
-  }
-
-  .event-deadline {
-    font-size: 0.55rem;
-    color: #dc2626;
-    font-weight: 600;
-    white-space: nowrap;
+    font-weight: 500;
   }
 </style>
