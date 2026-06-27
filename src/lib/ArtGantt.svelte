@@ -12,7 +12,7 @@
     { id: "один арт",       label: "Один арт",         color: "#10b981" },
     { id: "сломанный планшет", label: "Слом. планшет", color: "#ef4444" },
     { id: "фейк коллаб",    label: "Фейк коллаб",      color: "#8b5cf6" },
-    { id: "хуманизация",    label: "Хуманизация",      color: "#0ea5e9" },
+    { id: "хуманизация",    label: "Хуманизация",      color: "#d946ef" },
   ];
 
   // ─── Ивенты ──────────────────────────────────────────────────
@@ -337,6 +337,11 @@
   let eventLongPressStartX = 0;
   let eventLongPressStartY = 0;
 
+  // Для детекции двойного тапа (работает и на ПК, и на мобильных)
+  let lastTapEvent = null;
+  let lastTapTime = 0;
+  const DOUBLE_TAP_DELAY = 300; // мс
+
   function handleEventPointerDown(event, evt) {
     event.stopPropagation();
     eventLongPressStartX = event.clientX;
@@ -347,6 +352,28 @@
     }, 600);
   }
 
+  function handleEventPointerUp(event, evt) {
+    if (event) event.stopPropagation();
+    if (eventLongPressTimer) {
+      clearTimeout(eventLongPressTimer);
+      eventLongPressTimer = null;
+    }
+
+    // Детекция двойного тапа (работает на тач-устройствах и ПК)
+    const now = Date.now();
+    if (lastTapEvent === evt && now - lastTapTime < DOUBLE_TAP_DELAY) {
+      // Двойной тап — открываем ссылку
+      lastTapEvent = null;
+      lastTapTime = 0;
+      if (evt.link) {
+        window.open(evt.link, "_blank");
+      }
+    } else {
+      lastTapEvent = evt;
+      lastTapTime = now;
+    }
+  }
+
   function handleEventPointerMove(event) {
     if (!eventLongPressTimer) return;
     const dx = event.clientX - eventLongPressStartX;
@@ -354,20 +381,6 @@
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
       clearTimeout(eventLongPressTimer);
       eventLongPressTimer = null;
-    }
-  }
-
-  function handleEventPointerUp(event) {
-    if (event) event.stopPropagation();
-    if (eventLongPressTimer) {
-      clearTimeout(eventLongPressTimer);
-      eventLongPressTimer = null;
-    }
-  }
-
-  function handleEventDblClick(evt) {
-    if (evt.link) {
-      window.open(evt.link, "_blank");
     }
   }
 
@@ -402,6 +415,7 @@
   let headerScrollEl = $state(null);
   let headerCornerEl = $state(null);
   let ganttBodyEl = $state(null);
+  let ganttLabelsEl = $state(null);
   let isSyncing = false;
 
   function handleHeaderScroll() {
@@ -416,8 +430,18 @@
     if (isSyncing || !headerScrollEl) return;
     isSyncing = true;
     headerScrollEl.scrollLeft = ganttBodyEl.scrollLeft;
+    if (ganttLabelsEl) {
+      ganttLabelsEl.scrollTop = ganttBodyEl.scrollTop;
+    }
     isSyncing = false;
     updateStickyLabels();
+  }
+
+  function handleLabelsScroll() {
+    if (isSyncing || !ganttBodyEl) return;
+    isSyncing = true;
+    ganttBodyEl.scrollTop = ganttLabelsEl?.scrollTop ?? 0;
+    isSyncing = false;
   }
 
   function updateStickyLabels() {
@@ -562,7 +586,7 @@
     <!-- ─── ТЕЛО: СТРОКИ КАТЕГОРИЙ ──────────────────────────── -->
     <div class="gantt-body">
       <!-- Фиксированная колонка с названиями категорий -->
-      <div class="gantt-labels">
+      <div class="gantt-labels" bind:this={ganttLabelsEl} onscroll={handleLabelsScroll}>
         {#each categories as cat}
           {@const catData = eventsByCategory[cat.id]}
           <div
@@ -614,10 +638,9 @@
                       endPortion={getEndPortion(evt)}
                       onpointerdown={(e) => handleEventPointerDown(e, evt)}
                       onpointermove={handleEventPointerMove}
-                      onpointerup={handleEventPointerUp}
-                      onpointerleave={handleEventPointerUp}
-                      onpointercancel={handleEventPointerUp}
-                      ondblclick={() => handleEventDblClick(evt)}
+                      onpointerup={(e) => handleEventPointerUp(e, evt)}
+                      onpointerleave={(e) => handleEventPointerUp(e, evt)}
+                      onpointercancel={(e) => handleEventPointerUp(e, evt)}
                     />
                   </div>
                 {/each}
@@ -686,6 +709,11 @@
     overflow-x: auto;
     overflow-y: hidden;
     display: flex;
+    scrollbar-width: none;
+  }
+
+  .header-timescale-scroll::-webkit-scrollbar {
+    display: none;
   }
 
   .timescale-months {
@@ -747,10 +775,16 @@
 
   .gantt-labels {
     flex: 0 0 200px;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     background: #ffffff;
     border-right: 1px solid #e2e8f0;
     z-index: 15;
+    scrollbar-width: none;
+  }
+
+  .gantt-labels::-webkit-scrollbar {
+    display: none;
   }
 
   .gantt-scroll {

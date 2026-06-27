@@ -7,7 +7,6 @@
     onpointerup,
     onpointerleave,
     onpointercancel,
-    ondblclick,
   } = $props();
 
   // Светлая версия цвета для периода после набора (end → deadline)
@@ -30,7 +29,7 @@
   function handleKeyDown(e) {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      ondblclick?.();
+      // Двойной тап/клик теперь обрабатывается в ArtGantt через pointerup
     }
   }
 </script>
@@ -45,7 +44,6 @@
   {onpointerup}
   {onpointerleave}
   {onpointercancel}
-  {ondblclick}
   onkeydown={handleKeyDown}
 >
   <!-- Двухцветный фон: если есть набор — левая часть яркая, правая светлая -->
