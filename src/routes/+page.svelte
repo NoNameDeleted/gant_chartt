@@ -3,8 +3,8 @@
 </script>
 
 <svelte:head>
-  <title>Gantt Chart для арт-ивентов</title>
-  <meta name="description" content="Интерактивная Svelte диаграмма Ганта для арт-ивентов." />
+  <title>Арт ивенты</title>
+  <meta name="description" content="Интерактивная диаграмма Ганта для арт-ивентов." />
 </svelte:head>
 
 <ArtGantt />
