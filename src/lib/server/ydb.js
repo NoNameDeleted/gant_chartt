@@ -40,19 +40,29 @@ function buildConnectionString() {
  *    Работает только внутри Yandex Cloud.
  */
 function getCredentialsProvider() {
+  console.log('[ydb] Доступные переменные:',
+    'YDB_API_KEY=', env.YDB_API_KEY ? 'есть (длина: ' + env.YDB_API_KEY.length + ')' : 'нет',
+    'YDB_ACCESS_TOKEN_CREDENTIALS=', env.YDB_ACCESS_TOKEN_CREDENTIALS ? 'есть' : 'нет',
+    'YDB_ENDPOINT=', env.YDB_ENDPOINT || 'нет',
+    'YDB_DATABASE=', env.YDB_DATABASE ? 'есть' : 'нет'
+  );
+
   // Приоритет 1: API-ключ сервисного аккаунта (перманентное решение)
   if (env.YDB_API_KEY) {
+    console.log('[ydb] Выбран IamTokenProvider (API-ключ)');
     return new IamTokenProvider(env.YDB_API_KEY);
   }
 
   // Приоритет 2: IAM-токен (требует обновления каждые 12 часов)
   if (env.YDB_ACCESS_TOKEN_CREDENTIALS) {
+    console.log('[ydb] Выбран AccessTokenCredentialsProvider (IAM-токен)');
     return new AccessTokenCredentialsProvider({
       token: env.YDB_ACCESS_TOKEN_CREDENTIALS,
     });
   }
 
   // Приоритет 3: Metadata service (только внутри Yandex Cloud)
+  console.log('[ydb] Выбран MetadataCredentialsProvider (Yandex Cloud)');
   return new MetadataCredentialsProvider();
 }
 

@@ -97,6 +97,8 @@ export class IamTokenProvider extends CredentialsProvider {
         '[IamTokenProvider] API-ключ не задан. ' +
         'Установите YDB_API_KEY в переменных окружения.'
       );
+    } else {
+      console.log('[IamTokenProvider] API-ключ найден, длина:', this.apiKey.length);
     }
   }
 
@@ -109,6 +111,7 @@ export class IamTokenProvider extends CredentialsProvider {
    */
   async getToken(force, signal) {
     if (!this.apiKey) {
+      console.error('[IamTokenProvider] YDB_API_KEY не задан!');
       throw new Error(
         'YDB_API_KEY не задан. ' +
         'Создайте API-ключ сервисного аккаунта и установите переменную YDB_API_KEY.'
@@ -119,11 +122,17 @@ export class IamTokenProvider extends CredentialsProvider {
       if (signal?.aborted) {
         throw new DOMException('Aborted', 'AbortError');
       }
-      cachedToken = await exchangeApiKey(this.apiKey);
+      console.log('[IamTokenProvider] Обмениваю API-ключ на IAM-токен...');
+      try {
+        cachedToken = await exchangeApiKey(this.apiKey);
+        console.log('[IamTokenProvider] IAM-токен получен, expiresAt:',
+          new Date(cachedToken.expiresAt).toISOString());
+      } catch (err) {
+        console.error('[IamTokenProvider] Ошибка обмена API-ключа:', err.message);
+        throw err;
+      }
     }
 
-    // После вызова exchangeApiKey или проверки needsRefresh,
-    // cachedToken гарантированно не null
     return /** @type {CachedToken} */ (cachedToken).token;
   }
 }
