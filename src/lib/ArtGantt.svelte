@@ -350,16 +350,8 @@
     eventLongPressTimer = setTimeout(() => {
       openEditor(evt);
     }, 600);
-  }
 
-  function handleEventPointerUp(event, evt) {
-    if (event) event.stopPropagation();
-    if (eventLongPressTimer) {
-      clearTimeout(eventLongPressTimer);
-      eventLongPressTimer = null;
-    }
-
-    // Детекция двойного тапа (работает на тач-устройствах и ПК)
+    // Детекция двойного тапа в pointerdown (первый тап — ничего не делаем, второй — открываем ссылку)
     const now = Date.now();
     if (lastTapEvent === evt && now - lastTapTime < DOUBLE_TAP_DELAY) {
       // Двойной тап — открываем ссылку
@@ -371,6 +363,14 @@
     } else {
       lastTapEvent = evt;
       lastTapTime = now;
+    }
+  }
+
+  function handleEventPointerUp(event) {
+    if (event) event.stopPropagation();
+    if (eventLongPressTimer) {
+      clearTimeout(eventLongPressTimer);
+      eventLongPressTimer = null;
     }
   }
 
@@ -638,9 +638,9 @@
                       endPortion={getEndPortion(evt)}
                       onpointerdown={(e) => handleEventPointerDown(e, evt)}
                       onpointermove={handleEventPointerMove}
-                      onpointerup={(e) => handleEventPointerUp(e, evt)}
-                      onpointerleave={(e) => handleEventPointerUp(e, evt)}
-                      onpointercancel={(e) => handleEventPointerUp(e, evt)}
+                      onpointerup={handleEventPointerUp}
+                      onpointerleave={handleEventPointerUp}
+                      onpointercancel={handleEventPointerUp}
                     />
                   </div>
                 {/each}
