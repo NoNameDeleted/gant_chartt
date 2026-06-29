@@ -1063,15 +1063,15 @@
   }
 
   .edit-event-btn {
-    background: #f1f5f9;
-    color: #475569;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    background: #3b82f6;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
   }
 
   .edit-event-btn:hover:not(:disabled) {
-    background: #e2e8f0;
+    background: #2563eb;
     transform: scale(1.08);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
   }
 
   .edit-event-btn:active:not(:disabled) {
