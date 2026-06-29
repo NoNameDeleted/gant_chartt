@@ -247,6 +247,9 @@
   let editorOpen = $state(false);
   let editingEvent = $state(null);
 
+  // Последний ивент, на который кликнули (для кнопки редактирования ✏️)
+  let lastClickedEvent = $state(null);
+
   let form = $state({
     id: null,
     text: "",
@@ -361,6 +364,8 @@
 
   function handleEventPointerDown(event, evt) {
     event.stopPropagation();
+    // Запоминаем последний кликнутый ивент для кнопки редактирования ✏️
+    lastClickedEvent = evt;
     // Захватываем указатель, чтобы pointermove продолжал приходить даже за пределами карточки
     event.currentTarget.setPointerCapture(event.pointerId);
     eventLongPressStartX = event.clientX;
@@ -592,10 +597,24 @@
 
 <section class="art-gantt-page" style="height: {containerHeight}px">
   <div class="gantt-wrapper">
-    <!-- ─── КНОПКА ДОБАВЛЕНИЯ (правый верхний угол) ──────────── -->
-    <button class="add-event-btn" onclick={() => openEditor()} aria-label="Добавить ивент">
-      +
-    </button>
+    <!-- ─── КНОПКИ (правый верхний угол) ──────────────────────── -->
+    <div class="header-actions">
+      <button
+        class="header-action-btn edit-event-btn"
+        onclick={() => lastClickedEvent && openEditor(lastClickedEvent)}
+        disabled={!lastClickedEvent}
+        aria-label="Редактировать ивент"
+      >
+        ✏️
+      </button>
+      <button
+        class="header-action-btn add-event-btn"
+        onclick={() => openEditor()}
+        aria-label="Добавить ивент"
+      >
+        +
+      </button>
+    </div>
 
     {#if editorOpen}
       <EventEditor
@@ -1001,27 +1020,36 @@
     box-sizing: border-box;
   }
 
-  /* ─── КНОПКА ДОБАВЛЕНИЯ ───────────────────────────────────── */
-  .add-event-btn {
+  /* ─── КНОПКИ В ПРАВОМ ВЕРХНЕМ УГЛУ ───────────────────────── */
+  .header-actions {
     position: absolute;
     top: 8px;
     right: 12px;
     z-index: 50;
+    display: flex;
+    gap: 6px;
+  }
+
+  .header-action-btn {
     width: 36px;
     height: 36px;
     border-radius: 50%;
     border: none;
-    background: #3b82f6;
-    color: #fff;
-    font-size: 1.4rem;
-    font-weight: 700;
-    line-height: 1;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+    font-size: 1.2rem;
+    line-height: 1;
     transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+  }
+
+  .add-event-btn {
+    background: #3b82f6;
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.4rem;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
   }
 
   .add-event-btn:hover {
@@ -1032,6 +1060,28 @@
 
   .add-event-btn:active {
     transform: scale(0.95);
+  }
+
+  .edit-event-btn {
+    background: #f1f5f9;
+    color: #475569;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .edit-event-btn:hover:not(:disabled) {
+    background: #e2e8f0;
+    transform: scale(1.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .edit-event-btn:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  .edit-event-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    box-shadow: none;
   }
 
   /* ─── СТАТУС-БАР ──────────────────────────────────────────── */
