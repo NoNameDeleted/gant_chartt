@@ -592,6 +592,11 @@
 
 <section class="art-gantt-page" style="height: {containerHeight}px">
   <div class="gantt-wrapper">
+    <!-- ─── КНОПКА ДОБАВЛЕНИЯ (правый верхний угол) ──────────── -->
+    <button class="add-event-btn" onclick={() => openEditor()} aria-label="Добавить ивент">
+      +
+    </button>
+
     {#if editorOpen}
       <EventEditor
         {form}
@@ -994,6 +999,39 @@
     position: absolute;
     padding: 0 2px;
     box-sizing: border-box;
+  }
+
+  /* ─── КНОПКА ДОБАВЛЕНИЯ ───────────────────────────────────── */
+  .add-event-btn {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    z-index: 50;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: #3b82f6;
+    color: #fff;
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+    transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+  }
+
+  .add-event-btn:hover {
+    background: #2563eb;
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
+  }
+
+  .add-event-btn:active {
+    transform: scale(0.95);
   }
 
   /* ─── СТАТУС-БАР ──────────────────────────────────────────── */
