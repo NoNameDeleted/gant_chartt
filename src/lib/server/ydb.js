@@ -76,6 +76,7 @@ export async function getYdb() {
   if (sql) return sql;
 
   const connectionString = buildConnectionString();
+  console.log('[ydb] connectionString:', connectionString ? connectionString.slice(0, 80) + '...' : 'ПУСТО');
   if (!connectionString) {
     throw new Error(
       'YDB не настроен. Задайте YDB_ENDPOINT и YDB_DATABASE ' +
@@ -83,12 +84,23 @@ export async function getYdb() {
     );
   }
 
+  console.log('[ydb] Создаю Driver...');
   driver = new Driver(connectionString, {
     credentialsProvider: getCredentialsProvider(),
   });
 
-  await driver.ready();
+  console.log('[ydb] Вызываю driver.ready()...');
+  try {
+    await driver.ready();
+    console.log('[ydb] driver.ready() успешно завершён');
+  } catch (err) {
+    console.error('[ydb] driver.ready() ОШИБКА:', err);
+    throw err;
+  }
+
+  console.log('[ydb] Создаю query...');
   sql = query(driver);
+  console.log('[ydb] YDB инициализирован успешно');
   return sql;
 }
 
@@ -120,12 +132,21 @@ function dateToTs(value) {
  * @returns {Promise<Array>}
  */
 export async function loadEvents() {
-  const ydb = await getYdb();
+  console.log('[ydb] loadEvents() вызван');
+  let ydb;
+  try {
+    ydb = await getYdb();
+    console.log('[ydb] getYdb() успешно');
+  } catch (err) {
+    console.error('[ydb] getYdb() ОШИБКА:', err);
+    throw err;
+  }
 
   // Пробуем прочитать has_set. Если колонки нет — YDB вернёт ошибку,
   // ловим её и делаем SELECT без has_set.
   let resultSets;
   try {
+    console.log('[ydb] Выполняю SELECT с has_set...');
     resultSets = await ydb`
       SELECT
         id,
@@ -140,23 +161,32 @@ export async function loadEvents() {
       FROM events
       ORDER BY id
     `;
-  } catch {
-    resultSets = await ydb`
-      SELECT
-        id,
-        category,
-        text,
-        link,
-        start,
-        \`end\`,
-        deadline,
-        progress
-      FROM events
-      ORDER BY id
-    `;
+    console.log('[ydb] SELECT с has_set успешно');
+  } catch (err) {
+    console.log('[ydb] SELECT с has_set упал, пробую без has_set:', err.message);
+    try {
+      resultSets = await ydb`
+        SELECT
+          id,
+          category,
+          text,
+          link,
+          start,
+          \`end\`,
+          deadline,
+          progress
+        FROM events
+        ORDER BY id
+      `;
+      console.log('[ydb] SELECT без has_set успешно');
+    } catch (err2) {
+      console.error('[ydb] SELECT без has_set тоже упал:', err2);
+      throw err2;
+    }
   }
 
   const rows = resultSets[0] || [];
+  console.log('[ydb] Загружено строк:', rows.length);
 
   return rows.map((row) => ({
     id: Number(row.id),

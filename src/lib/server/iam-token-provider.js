@@ -65,17 +65,33 @@ function createJwt(saKey) {
  * @param {Object} saKey — авторизованный ключ сервисного аккаунта
  * @returns {Promise<CachedToken>}
  */
+const IAM_TOKEN_TIMEOUT = 5000; // 5 секунд таймаут на запрос к IAM API
+
 /**
  * @param {any} saKey
  */
 async function exchangeJwt(saKey) {
   const assertion = createJwt(saKey);
 
-  const response = await fetch(IAM_TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jwt: assertion }),
-  });
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(() => abortController.abort(), IAM_TOKEN_TIMEOUT);
+
+  let response;
+  try {
+    response = await fetch(IAM_TOKEN_URL, {
+      signal: abortController.signal,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jwt: assertion }),
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('Таймаут обмена JWT на IAM-токен: IAM API недоступен');
+    }
+    throw err;
+  }
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     const text = await response.text();
