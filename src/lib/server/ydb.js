@@ -227,24 +227,32 @@ async function ensureHasSetColumn() {
  * @param {Object} event
  */
 export async function saveEvent(event) {
+  console.log('[ydb] saveEvent() вызван, id:', event.id, 'text:', event.text);
+  const startTime = Date.now();
   const ydb = await getYdb();
 
   await ensureHasSetColumn();
 
-  await ydb`
-    UPSERT INTO events (id, category, text, link, start, \`end\`, deadline, progress, has_set)
-    VALUES (
-      ${BigInt(event.id)},
-      ${event.category},
-      ${event.text},
-      ${event.link || ''},
-      ${dateToTs(event.start)},
-      ${dateToTs(event.end)},
-      ${dateToTs(event.deadline)},
-      ${event.progress ?? 0},
-      ${event.hasSet ?? true}
-    )
-  `;
+  try {
+    await ydb`
+      UPSERT INTO events (id, category, text, link, start, \`end\`, deadline, progress, has_set)
+      VALUES (
+        ${BigInt(event.id)},
+        ${event.category},
+        ${event.text},
+        ${event.link || ''},
+        ${dateToTs(event.start)},
+        ${dateToTs(event.end)},
+        ${dateToTs(event.deadline)},
+        ${event.progress ?? 0},
+        ${event.hasSet ?? true}
+      )
+    `;
+    console.log('[ydb] saveEvent() успешно за', Date.now() - startTime, 'мс, id:', event.id);
+  } catch (err) {
+    console.error('[ydb] saveEvent() ОШИБКА за', Date.now() - startTime, 'мс, id:', event.id, err.message);
+    throw err;
+  }
 }
 
 /**
@@ -266,28 +274,42 @@ export async function deleteEvent(id) {
  * @param {Array} events
  */
 export async function saveAllEvents(events) {
+  console.log('[ydb] saveAllEvents() вызван, ивентов:', events.length);
+  const startTime = Date.now();
   const ydb = await getYdb();
 
   await ensureHasSetColumn();
 
-  await ydb.begin(async (tx) => {
-    await tx`DELETE FROM events`;
+  try {
+    await ydb.begin(async (tx) => {
+      console.log('[ydb] saveAllEvents() транзакция начата');
+      const deleteStart = Date.now();
+      await tx`DELETE FROM events`;
+      console.log('[ydb] saveAllEvents() DELETE выполнен за', Date.now() - deleteStart, 'мс');
 
-    for (const event of events) {
-      await tx`
-        UPSERT INTO events (id, category, text, link, start, \`end\`, deadline, progress, has_set)
-        VALUES (
-          ${BigInt(event.id)},
-          ${event.category},
-          ${event.text},
-          ${event.link || ''},
-          ${dateToTs(event.start)},
-          ${dateToTs(event.end)},
-          ${dateToTs(event.deadline)},
-          ${event.progress ?? 0},
-          ${event.hasSet ?? true}
-        )
-      `;
-    }
-  });
+      for (let i = 0; i < events.length; i++) {
+        const event = events[i];
+        const upsertStart = Date.now();
+        await tx`
+          UPSERT INTO events (id, category, text, link, start, \`end\`, deadline, progress, has_set)
+          VALUES (
+            ${BigInt(event.id)},
+            ${event.category},
+            ${event.text},
+            ${event.link || ''},
+            ${dateToTs(event.start)},
+            ${dateToTs(event.end)},
+            ${dateToTs(event.deadline)},
+            ${event.progress ?? 0},
+            ${event.hasSet ?? true}
+          )
+        `;
+        console.log('[ydb] saveAllEvents() UPSERT', i, 'id:', event.id, 'за', Date.now() - upsertStart, 'мс');
+      }
+    });
+    console.log('[ydb] saveAllEvents() транзакция завершена успешно за', Date.now() - startTime, 'мс');
+  } catch (err) {
+    console.error('[ydb] saveAllEvents() ОШИБКА за', Date.now() - startTime, 'мс:', err.message);
+    throw err;
+  }
 }

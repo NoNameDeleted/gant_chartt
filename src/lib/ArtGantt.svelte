@@ -71,17 +71,26 @@
 
   async function syncEvents() {
     // Если уже идёт сохранение — не запускаем повторно
-    if (saving) return;
+    if (saving) {
+      console.log("[syncEvents] Уже идёт сохранение, пропускаю");
+      return;
+    }
 
     // Отменяем предыдущий запрос, если он ещё висит
     if (savingAbortController) {
+      console.log("[syncEvents] Отменяю предыдущий запрос");
       savingAbortController.abort();
     }
 
     savingAbortController = new AbortController();
     saving = true;
+    const startTime = Date.now();
+    console.log("[syncEvents] Начинаю сохранение, ивентов:", events.length);
     try {
-      const timeoutId = setTimeout(() => savingAbortController.abort(), SAVE_TIMEOUT);
+      const timeoutId = setTimeout(() => {
+        console.log("[syncEvents] ТАЙМАУТ", SAVE_TIMEOUT, "мс истёк, прерываю запрос");
+        savingAbortController.abort();
+      }, SAVE_TIMEOUT);
       const res = await fetch("/api/events", {
         signal: savingAbortController.signal,
         method: "POST",
@@ -89,16 +98,22 @@
         body: JSON.stringify({ events }),
       });
       clearTimeout(timeoutId);
-      if (!res.ok) throw new Error(`Ошибка сохранения: ${res.status}`);
+      const elapsed = Date.now() - startTime;
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "нет тела ответа");
+        throw new Error(`Ошибка сохранения: ${res.status} — ${errText}`);
+      }
+      console.log("[syncEvents] Сохранение успешно за", elapsed, "мс");
     } catch (err) {
       if (err.name === 'AbortError') {
-        console.error("Ошибка синхронизации с YDB: таймаут");
+        console.error("[syncEvents] Ошибка синхронизации с YDB: ТАЙМАУТ", SAVE_TIMEOUT, "мс");
       } else {
-        console.error("Ошибка синхронизации с YDB:", err);
+        console.error("[syncEvents] Ошибка синхронизации с YDB:", err.message);
       }
     } finally {
       saving = false;
       savingAbortController = null;
+      console.log("[syncEvents] Завершено за", Date.now() - startTime, "мс");
     }
   }
 

@@ -20,24 +20,32 @@ export async function GET() {
  *   или: { event: {...} } — сохранение одного ивента
  */
 export async function POST({ request }) {
+  const startTime = Date.now();
+  console.log('[api/events] POST запрос получен');
   try {
     const body = await request.json();
+    console.log('[api/events] Тело запроса: events=', body.events ? body.events.length : 'нет', 'event=', body.event ? 'есть' : 'нет');
 
     if (body.events) {
       // Полная синхронизация — заменяем все ивенты
+      console.log('[api/events] Вызываю saveAllEvents, ивентов:', body.events.length);
       await saveAllEvents(body.events);
+      console.log('[api/events] saveAllEvents успешно за', Date.now() - startTime, 'мс');
       return json({ ok: true });
     }
 
     if (body.event) {
       // Сохраняем один ивент
+      console.log('[api/events] Вызываю saveEvent, id:', body.event.id);
       await saveEvent(body.event);
+      console.log('[api/events] saveEvent успешно за', Date.now() - startTime, 'мс');
       return json({ ok: true });
     }
 
+    console.log('[api/events] Неверный формат запроса');
     return json({ error: 'Неверный формат запроса' }, { status: 400 });
   } catch (err) {
-    console.error('[api/events] POST error:', err);
+    console.error('[api/events] POST error за', Date.now() - startTime, 'мс:', err.message);
     return json({ error: err.message }, { status: 500 });
   }
 }
