@@ -20,6 +20,7 @@
   let loading = $state(true);
   let saving = $state(false);
   let error = $state(null);
+  let savingAbortController = $state(null);
 
   // ─── Загрузка ивентов из YDB ─────────────────────────────────
   async function fetchEvents() {
@@ -66,19 +67,38 @@
   }
 
   // ─── Сохранение всех ивентов в YDB ───────────────────────────
+  const SAVE_TIMEOUT = 15000; // 15 секунд таймаут
+
   async function syncEvents() {
+    // Если уже идёт сохранение — не запускаем повторно
+    if (saving) return;
+
+    // Отменяем предыдущий запрос, если он ещё висит
+    if (savingAbortController) {
+      savingAbortController.abort();
+    }
+
+    savingAbortController = new AbortController();
     saving = true;
     try {
+      const timeoutId = setTimeout(() => savingAbortController.abort(), SAVE_TIMEOUT);
       const res = await fetch("/api/events", {
+        signal: savingAbortController.signal,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ events }),
       });
+      clearTimeout(timeoutId);
       if (!res.ok) throw new Error(`Ошибка сохранения: ${res.status}`);
     } catch (err) {
-      console.error("Ошибка синхронизации с YDB:", err);
+      if (err.name === 'AbortError') {
+        console.error("Ошибка синхронизации с YDB: таймаут");
+      } else {
+        console.error("Ошибка синхронизации с YDB:", err);
+      }
     } finally {
       saving = false;
+      savingAbortController = null;
     }
   }
 
@@ -294,7 +314,7 @@
     editorOpen = false;
   }
 
-  function saveEvent() {
+  async function saveEvent() {
     const evt = {
       id: form.id,
       text: form.text,
@@ -308,16 +328,15 @@
     };
 
     if (editingEvent) {
-      const idx = events.findIndex((e) => e.id === evt.id);
-      if (idx !== -1) events[idx] = evt;
+      events = events.map((e) => (e.id === evt.id ? evt : e));
     } else {
-      events.push(evt);
+      events = [...events, evt];
     }
 
     editorOpen = false;
 
     // Синхронизируем с YDB
-    syncEvents();
+    await syncEvents();
   }
 
   async function deleteEvent() {
@@ -332,14 +351,22 @@
 
     // Удаляем из YDB
     try {
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), SAVE_TIMEOUT);
       const res = await fetch("/api/events", {
+        signal: abortController.signal,
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
+      clearTimeout(timeoutId);
       if (!res.ok) throw new Error(`Ошибка удаления: ${res.status}`);
     } catch (err) {
-      console.error("Ошибка удаления ивента из YDB:", err);
+      if (err.name === 'AbortError') {
+        console.error("Ошибка удаления ивента из YDB: таймаут");
+      } else {
+        console.error("Ошибка удаления ивента из YDB:", err);
+      }
     }
   }
 
