@@ -67,7 +67,8 @@
   }
 
   // ─── Сохранение всех ивентов в YDB ───────────────────────────
-  const SAVE_TIMEOUT = 15000; // 15 секунд таймаут
+  const SAVE_TIMEOUT = 30000; // 30 секунд таймаут (YDB cold start может быть долгим)
+  const SAVE_RETRY_COUNT = 2; // количество повторных попыток при таймауте
 
   async function syncEvents() {
     // Если уже идёт сохранение — не запускаем повторно
@@ -76,44 +77,100 @@
       return;
     }
 
-    // Отменяем предыдущий запрос, если он ещё висит
-    if (savingAbortController) {
-      console.log("[syncEvents] Отменяю предыдущий запрос");
-      savingAbortController.abort();
-    }
-
-    savingAbortController = new AbortController();
     saving = true;
+    error = null;
     const startTime = Date.now();
     console.log("[syncEvents] Начинаю сохранение, ивентов:", events.length);
-    try {
+
+    let lastError = null;
+
+    for (let attempt = 0; attempt <= SAVE_RETRY_COUNT; attempt++) {
+      if (attempt > 0) {
+        console.log(`[syncEvents] Попытка ${attempt + 1} из ${SAVE_RETRY_COUNT + 1}...`);
+        // Пауза между попытками: 1с, 2с
+        await new Promise(r => setTimeout(r, attempt * 1000));
+      }
+
+      const abortController = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.log("[syncEvents] ТАЙМАУТ", SAVE_TIMEOUT, "мс истёк, прерываю запрос");
-        savingAbortController.abort();
+        console.log(`[syncEvents] ТАЙМАУТ ${SAVE_TIMEOUT}мс истёк (попытка ${attempt + 1})`);
+        abortController.abort();
       }, SAVE_TIMEOUT);
+
+      try {
+        const res = await fetch("/api/events", {
+          signal: abortController.signal,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ events }),
+        });
+        clearTimeout(timeoutId);
+        const elapsed = Date.now() - startTime;
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "нет тела ответа");
+          throw new Error(`Ошибка сохранения: ${res.status} — ${errText}`);
+        }
+        // Успех — проверяем, что данные реально сохранились
+        console.log("[syncEvents] Сохранение отправлено за", elapsed, "мс, проверяю...");
+        const verifyOk = await verifyEventsSaved();
+        if (!verifyOk) {
+          throw new Error("Верификация не пройдена: данные не найдены в БД после сохранения");
+        }
+        console.log("[syncEvents] Сохранение подтверждено за", Date.now() - startTime, "мс");
+        saving = false;
+        return; // Успех — выходим
+      } catch (err) {
+        clearTimeout(timeoutId);
+        lastError = err;
+        if (err.name === 'AbortError') {
+          console.error(`[syncEvents] Таймаут (попытка ${attempt + 1})`);
+        } else {
+          console.error(`[syncEvents] Ошибка (попытка ${attempt + 1}):`, err.message);
+        }
+        // Если это не таймаут и не ошибка сети — повторять бесполезно
+        if (err.name !== 'AbortError' && err.name !== 'TypeError') {
+          break;
+        }
+      }
+    }
+
+    // Все попытки исчерпаны
+    console.error("[syncEvents] Все попытки сохранения исчерпаны:", lastError?.message);
+    error = "Ошибка сохранения: данные не были сохранены в БД";
+    saving = false;
+  }
+
+  /**
+   * Проверяет, что ивенты реально сохранились в YDB.
+   * Делает GET-запрос и проверяет, что количество ивентов совпадает.
+   */
+  async function verifyEventsSaved() {
+    try {
+      const verifyAbort = new AbortController();
+      const verifyTimeout = setTimeout(() => verifyAbort.abort(), 10000);
       const res = await fetch("/api/events", {
-        signal: savingAbortController.signal,
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ events }),
+        signal: verifyAbort.signal,
       });
-      clearTimeout(timeoutId);
-      const elapsed = Date.now() - startTime;
-      if (!res.ok) {
-        const errText = await res.text().catch(() => "нет тела ответа");
-        throw new Error(`Ошибка сохранения: ${res.status} — ${errText}`);
+      clearTimeout(verifyTimeout);
+      if (!res.ok) return false;
+      const data = await res.json();
+      // Проверяем, что количество совпадает и есть наши ивенты
+      if (data.length !== events.length) {
+        console.warn(`[verify] Количество не совпадает: БД=${data.length}, локально=${events.length}`);
+        return false;
       }
-      console.log("[syncEvents] Сохранение успешно за", elapsed, "мс");
+      // Проверяем, что последний ивент из нашего списка есть в БД
+      const lastLocal = events[events.length - 1];
+      const found = data.some(e => e.id === lastLocal.id);
+      if (!found) {
+        console.warn(`[verify] Ивент id=${lastLocal.id} не найден в БД после сохранения`);
+        return false;
+      }
+      console.log("[verify] Верификация успешна");
+      return true;
     } catch (err) {
-      if (err.name === 'AbortError') {
-        console.error("[syncEvents] Ошибка синхронизации с YDB: ТАЙМАУТ", SAVE_TIMEOUT, "мс");
-      } else {
-        console.error("[syncEvents] Ошибка синхронизации с YDB:", err.message);
-      }
-    } finally {
-      saving = false;
-      savingAbortController = null;
-      console.log("[syncEvents] Завершено за", Date.now() - startTime, "мс");
+      console.warn("[verify] Ошибка верификации:", err.message);
+      return false; // Ошибка верификации не критична, данные могли сохраниться
     }
   }
 
@@ -670,14 +727,17 @@
     {/if}
 
     <!-- ─── ИНДИКАТОР СТАТУСА ───────────────────────────────── -->
-    {#if loading || saving}
-      <div class="status-bar">
+    {#if loading || saving || error}
+      <div class="status-bar" class:status-bar-error={!!error}>
         {#if loading}
           <span class="status-spinner"></span>
           <span>Загрузка...</span>
         {:else if saving}
           <span class="status-spinner"></span>
           <span>Сохранение...</span>
+        {:else if error}
+          <span class="status-error-icon">⚠️</span>
+          <span>{error}</span>
         {/if}
       </div>
     {/if}
@@ -1150,6 +1210,18 @@
 
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+
+  /* ─── СТАТУС-БАР: ОШИБКА ──────────────────────────────────── */
+  .status-bar-error {
+    background: #fef2f2;
+    border-bottom-color: #fecaca;
+    color: #dc2626;
+  }
+
+  .status-error-icon {
+    font-size: 1rem;
+    line-height: 1;
   }
 
   /* ─── МОБИЛЬНАЯ АДАПТАЦИЯ ────────────────────────────────── */

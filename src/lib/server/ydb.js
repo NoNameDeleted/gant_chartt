@@ -206,32 +206,12 @@ export async function loadEvents() {
 }
 
 /**
- * Добавляет колонку has_set в таблицу events, если её ещё нет.
- * Вызывается перед первым UPSERT-ом с has_set.
- */
-let hasSetColumnEnsured = false;
-
-async function ensureHasSetColumn() {
-  if (hasSetColumnEnsured) return;
-  const ydb = await getYdb();
-  try {
-    await ydb`ALTER TABLE events ADD COLUMN has_set Bool`;
-  } catch {
-    // колонка уже существует — игнорируем
-  }
-  hasSetColumnEnsured = true;
-}
-
-/**
  * Сохраняет ивент в YDB (UPSERT).
  * @param {Object} event
  */
 export async function saveEvent(event) {
-  console.log('[ydb] saveEvent() вызван, id:', event.id, 'text:', event.text);
   const startTime = Date.now();
   const ydb = await getYdb();
-
-  await ensureHasSetColumn();
 
   try {
     await ydb`
@@ -274,22 +254,14 @@ export async function deleteEvent(id) {
  * @param {Array} events
  */
 export async function saveAllEvents(events) {
-  console.log('[ydb] saveAllEvents() вызван, ивентов:', events.length);
   const startTime = Date.now();
   const ydb = await getYdb();
 
-  await ensureHasSetColumn();
-
   try {
     await ydb.begin(async (tx) => {
-      console.log('[ydb] saveAllEvents() транзакция начата');
-      const deleteStart = Date.now();
       await tx`DELETE FROM events`;
-      console.log('[ydb] saveAllEvents() DELETE выполнен за', Date.now() - deleteStart, 'мс');
 
-      for (let i = 0; i < events.length; i++) {
-        const event = events[i];
-        const upsertStart = Date.now();
+      for (const event of events) {
         await tx`
           UPSERT INTO events (id, category, text, link, start, \`end\`, deadline, progress, has_set)
           VALUES (
@@ -304,10 +276,9 @@ export async function saveAllEvents(events) {
             ${event.hasSet ?? true}
           )
         `;
-        console.log('[ydb] saveAllEvents() UPSERT', i, 'id:', event.id, 'за', Date.now() - upsertStart, 'мс');
       }
     });
-    console.log('[ydb] saveAllEvents() транзакция завершена успешно за', Date.now() - startTime, 'мс');
+    console.log('[ydb] saveAllEvents() успешно за', Date.now() - startTime, 'мс, ивентов:', events.length);
   } catch (err) {
     console.error('[ydb] saveAllEvents() ОШИБКА за', Date.now() - startTime, 'мс:', err.message);
     throw err;
