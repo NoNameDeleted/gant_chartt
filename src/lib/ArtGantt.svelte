@@ -407,8 +407,70 @@
 
     editorOpen = false;
 
-    // Синхронизируем с YDB
-    await syncEvents();
+    // Сохраняем только один ивент (не все 67!)
+    await syncSingleEvent(evt);
+  }
+
+  /**
+   * Сохраняет один ивент в YDB через POST /api/events { event: {...} }
+   */
+  async function syncSingleEvent(evt) {
+    if (saving) {
+      console.log("[syncSingleEvent] Уже идёт сохранение, пропускаю");
+      return;
+    }
+
+    saving = true;
+    error = null;
+    const startTime = Date.now();
+    console.log("[syncSingleEvent] Сохраняю ивент id:", evt.id);
+
+    let lastError = null;
+
+    for (let attempt = 0; attempt <= SAVE_RETRY_COUNT; attempt++) {
+      if (attempt > 0) {
+        console.log(`[syncSingleEvent] Попытка ${attempt + 1} из ${SAVE_RETRY_COUNT + 1}...`);
+        await new Promise(r => setTimeout(r, attempt * 1000));
+      }
+
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.log(`[syncSingleEvent] ТАЙМАУТ ${SAVE_TIMEOUT}мс (попытка ${attempt + 1})`);
+        abortController.abort();
+      }, SAVE_TIMEOUT);
+
+      try {
+        const res = await fetch("/api/events", {
+          signal: abortController.signal,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event: evt }),
+        });
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "нет тела ответа");
+          throw new Error(`Ошибка сохранения: ${res.status} — ${errText}`);
+        }
+        console.log("[syncSingleEvent] Успешно за", Date.now() - startTime, "мс");
+        saving = false;
+        return;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        lastError = err;
+        if (err.name === 'AbortError') {
+          console.error(`[syncSingleEvent] Таймаут (попытка ${attempt + 1})`);
+        } else {
+          console.error(`[syncSingleEvent] Ошибка (попытка ${attempt + 1}):`, err.message);
+        }
+        if (err.name !== 'AbortError' && err.name !== 'TypeError') {
+          break;
+        }
+      }
+    }
+
+    console.error("[syncSingleEvent] Все попытки исчерпаны:", lastError?.message);
+    error = "Ошибка сохранения: ивент не был сохранён в БД";
+    saving = false;
   }
 
   async function deleteEvent() {

@@ -250,34 +250,32 @@ export async function deleteEvent(id) {
 
 /**
  * Сохраняет массив ивентов (полная синхронизация).
- * Сначала удаляет все, потом вставляет текущие.
+ * UPSERT всех ивентов по одному (без транзакции).
  * @param {Array} events
  */
 export async function saveAllEvents(events) {
   const startTime = Date.now();
+  console.log('[ydb] saveAllEvents() начало, ивентов:', events.length);
   const ydb = await getYdb();
 
   try {
-    await ydb.begin(async (tx) => {
-      await tx`DELETE FROM events`;
-
-      for (const event of events) {
-        await tx`
-          UPSERT INTO events (id, category, text, link, start, \`end\`, deadline, progress, has_set)
-          VALUES (
-            ${BigInt(event.id)},
-            ${event.category},
-            ${event.text},
-            ${event.link || ''},
-            ${dateToTs(event.start)},
-            ${dateToTs(event.end)},
-            ${dateToTs(event.deadline)},
-            ${event.progress ?? 0},
-            ${event.hasSet ?? true}
-          )
-        `;
-      }
-    });
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
+      await ydb`
+        UPSERT INTO events (id, category, text, link, start, \`end\`, deadline, progress, has_set)
+        VALUES (
+          ${BigInt(event.id)},
+          ${event.category},
+          ${event.text},
+          ${event.link || ''},
+          ${dateToTs(event.start)},
+          ${dateToTs(event.end)},
+          ${dateToTs(event.deadline)},
+          ${event.progress ?? 0},
+          ${event.hasSet ?? true}
+        )
+      `;
+    }
     console.log('[ydb] saveAllEvents() успешно за', Date.now() - startTime, 'мс, ивентов:', events.length);
   } catch (err) {
     console.error('[ydb] saveAllEvents() ОШИБКА за', Date.now() - startTime, 'мс:', err.message);
