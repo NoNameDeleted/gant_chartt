@@ -1,0 +1,77 @@
+name: Update YDB IAM Token
+
+on:
+  schedule:
+    # Каждые 11 часов — IAM-токен живёт 12 часов, обновляемся за 1 час до истечения
+    - cron: '0 */11 * * *'
+  # Возможность запустить вручную
+  workflow_dispatch:
+
+jobs:
+  update-token:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Yandex Cloud CLI
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+          echo "$HOME/.yandex-cloud/bin" >> $GITHUB_PATH
+
+      - name: Authenticate with Yandex Cloud
+        env:
+          YC_SERVICE_ACCOUNT_KEY_FILE: /tmp/sa-key.json
+        run: |
+          # Создаём файл ключа из переменной окружения GitHub Secrets
+          echo '${{ secrets.YC_SA_KEY_JSON }}' > /tmp/sa-key.json
+          yc config set service-account-key /tmp/sa-key.json
+          yc config set cloud-id '${{ secrets.YC_CLOUD_ID }}'
+          yc config set folder-id '${{ secrets.YC_FOLDER_ID }}'
+
+      - name: Get IAM Token
+        id: get-token
+        run: |
+          TOKEN=$(yc iam create-token)
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Update Vercel Environment Variable
+        uses: actions/github-script@v7
+        env:
+          YDB_TOKEN: ${{ steps.get-token.outputs.token }}
+        with:
+          script: |
+            const token = process.env.YDB_TOKEN;
+            
+            // Обновляем переменную на Vercel через их API
+            const response = await fetch(
+              `https://api.vercel.com/v10/projects/${{ secrets.VERCEL_PROJECT_ID }}/env`,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${{ secrets.VERCEL_TOKEN }}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  key: 'YDB_ACCESS_TOKEN_CREDENTIALS',
+                  value: token,
+                  type: 'encrypted',
+                  target: ['production', 'preview'],
+                }),
+              }
+            );
+            
+            if (!response.ok) {
+              const text = await response.text();
+              throw new Error(`Vercel API error: ${response.status} ${text}`);
+            }
+            
+            console.log('Token updated successfully');
+
+      - name: Redeploy Vercel
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "https://api.vercel.com/v1/deployments?projectId=${{ secrets.VERCEL_PROJECT_ID }}" \
+            -d '{"target": "production"}'
