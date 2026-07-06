@@ -1,7 +1,45 @@
 <script>
+  import { onMount } from 'svelte';
+
   let { form, categories, editingEvent, onsave, onclose, ondelete } = $props();
 
   let confirmDelete = $state(false);
+
+  let editorEl = $state(null);
+  let overlayEl = $state(null);
+
+  onMount(() => {
+    if (typeof window !== 'undefined') {
+      const vh = window.innerHeight;
+      const vw = window.innerWidth;
+      const editorHeight = editorEl?.offsetHeight ?? 0;
+      const overlayHeight = overlayEl?.offsetHeight ?? 0;
+
+      console.log('📱 [EventEditor] Диагностика размеров:', {
+        viewport: `${vw}x${vh}`,
+        editorHeight,
+        overlayHeight,
+        editorLargerThanViewport: editorHeight > vh,
+        difference: editorHeight - vh,
+        scrollHeight: editorEl?.scrollHeight ?? 0,
+        clientHeight: editorEl?.clientHeight ?? 0,
+      });
+
+      // Проверка, видна ли нижняя кнопка
+      if (editorEl) {
+        const actionsEl = editorEl.querySelector('.actions');
+        if (actionsEl) {
+          const actionsRect = actionsEl.getBoundingClientRect();
+          console.log('📱 [EventEditor] Позиция кнопок:', {
+            actionsBottom: actionsRect.bottom,
+            viewportHeight: vh,
+            isActionsVisible: actionsRect.bottom <= vh,
+            hiddenBy: actionsRect.bottom > vh ? actionsRect.bottom - vh + 'px' : 'нет',
+          });
+        }
+      }
+    }
+  });
 </script>
 
 <div class="overlay" role="button" tabindex="0" onclick={onclose} onkeydown={(e) => e.key === 'Escape' && onclose()}>
@@ -9,6 +47,7 @@
     class="editor"
     role="dialog"
     tabindex="0"
+    bind:this={editorEl}
     onclick={(e) => e.stopPropagation()}
     onkeydown={(e) => e.key === 'Escape' && onclose()}
   >
