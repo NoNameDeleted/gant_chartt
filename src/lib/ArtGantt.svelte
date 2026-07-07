@@ -533,6 +533,11 @@
     }, 150);
   }
 
+  // ─── Коэффициент ускорения скролла колёсиком ─────────────────
+  // Telegram Web App на ПК замедляет wheel-события, поэтому
+  // умножаем deltaY на этот коэффициент для компенсации.
+  const SCROLL_SPEED_MULTIPLIER = 3;
+
   // ─── Drag-to-scroll состояние ────────────────────────────────
   let isDragging = $state(false);
   let dragStartX = 0;
@@ -644,6 +649,19 @@
       dragTarget.releasePointerCapture(event.pointerId);
     }
     dragTarget = null;
+    event.preventDefault();
+  }
+
+  // ─── Кастомный скролл колёсиком (ускорение для Telegram Web App) ──
+  function handleWheel(event) {
+    if (!ganttBodyEl) return;
+    // Умножаем deltaY на коэффициент ускорения
+    const scrollAmount = event.deltaY * SCROLL_SPEED_MULTIPLIER;
+    ganttBodyEl.scrollTop += scrollAmount;
+    // Синхронизируем скролл лейблов
+    if (ganttLabelsEl) {
+      ganttLabelsEl.scrollTop = ganttBodyEl.scrollTop;
+    }
     event.preventDefault();
   }
 
@@ -822,6 +840,7 @@
         class="header-timescale-scroll"
         bind:this={headerScrollEl}
         onscroll={handleHeaderScroll}
+        onwheel={handleWheel}
         onpointerdown={handleDragPointerDown}
         onpointermove={handleDragPointerMove}
         onpointerup={handleDragPointerUp}
@@ -883,6 +902,7 @@
         class="gantt-scroll"
         bind:this={ganttBodyEl}
         onscroll={handleBodyScroll}
+        onwheel={handleWheel}
         onpointerdown={handleDragPointerDown}
         onpointermove={handleDragPointerMove}
         onpointerup={handleDragPointerUp}
