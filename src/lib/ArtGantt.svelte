@@ -517,6 +517,12 @@
   // Флаг: было ли реальное перемещение во время текущего нажатия
   let hasDraggedDuringPress = false;
 
+  // Drag-to-scroll состояние (только для ПК)
+  let isDragging = $state(false);
+  let dragStartX = 0;
+  let dragStartScrollLeft = 0;
+  let dragTarget = null;
+
   // ─── Определение мобильного устройства ───────────────────────
   let isTouchDevice = $state(false);
 
@@ -595,8 +601,6 @@
 
   // ─── Pointer-события для ПК ──────────────────────────────────
   function handleEventPointerDown(event, evt) {
-    // На мобильных устройствах используем touch-события, pointer игнорируем
-    if (isTouchDevice) return;
     event.stopPropagation();
     event.preventDefault();
     lastClickedEvent = evt;
@@ -625,7 +629,6 @@
   }
 
   function handleEventPointerUp(event) {
-    if (isTouchDevice) return;
     if (event) event.stopPropagation();
     if (eventLongPressTimer) {
       clearTimeout(eventLongPressTimer);
@@ -635,7 +638,6 @@
   }
 
   function handleEventPointerMove(event) {
-    if (isTouchDevice) return;
     if (!eventLongPressTimer) return;
     const dx = event.clientX - eventLongPressStartX;
     const dy = event.clientY - eventLongPressStartY;
@@ -644,6 +646,40 @@
       eventLongPressTimer = null;
       hasDraggedDuringPress = true;
     }
+  }
+
+  // ─── Drag-to-scroll для пустых областей (только ПК) ──────────
+  function handleDragPointerDown(event) {
+    if (event.button !== 0) return;
+    // На мобильных устройствах скролл работает нативно
+    if (isTouchDevice) return;
+    // Не перехватываем pointerdown с карточки ивента
+    if (event.target && event.target.closest('.event-card')) return;
+    isDragging = true;
+    dragStartX = event.clientX;
+    dragTarget = event.currentTarget;
+    dragStartScrollLeft = dragTarget.scrollLeft;
+    dragTarget.setPointerCapture(event.pointerId);
+    dragTarget.style.cursor = 'grabbing';
+    event.preventDefault();
+  }
+
+  function handleDragPointerMove(event) {
+    if (!isDragging || !dragTarget) return;
+    hasDraggedDuringPress = true;
+    const dx = event.clientX - dragStartX;
+    dragTarget.scrollLeft = dragStartScrollLeft - dx;
+    event.preventDefault();
+  }
+
+  function handleDragPointerUp(event) {
+    if (!isDragging || !dragTarget) return;
+    isDragging = false;
+    dragTarget.style.cursor = '';
+    dragTarget.releasePointerCapture?.(event.pointerId);
+    dragTarget = null;
+    hasDraggedDuringPress = false;
+    event.preventDefault();
   }
 
   // ─── Обработчики для пустого места ───────────────────────────
@@ -832,6 +868,11 @@
         class="header-timescale-scroll"
         bind:this={headerScrollEl}
         onscroll={handleHeaderScroll}
+        onpointerdown={handleDragPointerDown}
+        onpointermove={handleDragPointerMove}
+        onpointerup={handleDragPointerUp}
+        onpointerleave={handleDragPointerUp}
+        onpointercancel={handleDragPointerUp}
       >
         <div class="header-corner" bind:this={headerCornerEl}>
           <span class="header-corner-text">Категория</span>
@@ -888,6 +929,11 @@
         class="gantt-scroll"
         bind:this={ganttBodyEl}
         onscroll={handleBodyScroll}
+        onpointerdown={handleDragPointerDown}
+        onpointermove={handleDragPointerMove}
+        onpointerup={handleDragPointerUp}
+        onpointerleave={handleDragPointerUp}
+        onpointercancel={handleDragPointerUp}
       >
         {#each categories as cat}
           {@const catData = eventsByCategory[cat.id]}
