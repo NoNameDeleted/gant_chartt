@@ -118,10 +118,13 @@
   }
 
   /* Контент поверх фона — строка */
-  /* Используем position: sticky вместо JS-управления left для
-     идеальной синхронизации с горизонтальным скроллом */
+  /* position: absolute + left: 0 прижимает текст к левому краю карточки.
+     Горизонтальный скролл теперь единый (шапка + тело в одном контейнере),
+     поэтому карточки двигаются синхронно.
+     Sticky-эффект для текста реализован через position: sticky на
+     .event-positioner в ArtGantt.svelte. */
   .card-content {
-    position: sticky;
+    position: absolute;
     left: 0;
     top: 0;
     bottom: 0;

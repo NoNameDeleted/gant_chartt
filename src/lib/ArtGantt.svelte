@@ -1151,7 +1151,10 @@
   }
 
   .event-positioner {
-    position: absolute;
+    /* Используем sticky вместо absolute — элемент прилипает к левому краю
+       при горизонтальном скролле, синхронно с названиями месяцев.
+       top и left задаются через inline style для каждого ивента. */
+    position: sticky;
     padding: 0 2px;
     box-sizing: border-box;
   }
