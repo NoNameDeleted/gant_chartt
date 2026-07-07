@@ -580,6 +580,10 @@
   // ─── Drag-to-scroll (ПК) ─────────────────────────────────────
   // Единый обработчик на .gantt-scroll и .header-timescale-scroll.
   // Перетаскивание работает и по ивентам, и по пустому месту.
+  //
+  // Если клик был на карточке ивента — НЕ захватываем pointer,
+  // чтобы pointerup дошёл до карточки для детекции двойного тапа.
+  // pointermove и pointerup будут всплывать от карточки до .gantt-scroll.
 
   function handleDragPointerDown(event) {
     if (event.button !== 0) return;
@@ -588,9 +592,12 @@
     dragStartX = event.clientX;
     dragTarget = event.currentTarget;
     dragStartScrollLeft = dragTarget.scrollLeft;
-    dragTarget.setPointerCapture(event.pointerId);
     dragTarget.style.cursor = 'grabbing';
     event.preventDefault();
+    // Захватываем pointer только если клик НЕ на карточке ивента
+    if (!event.target || !event.target.closest('.event-card')) {
+      dragTarget.setPointerCapture(event.pointerId);
+    }
   }
 
   function handleDragPointerMove(event) {
@@ -604,7 +611,9 @@
     if (!isDragging || !dragTarget) return;
     isDragging = false;
     dragTarget.style.cursor = '';
-    dragTarget.releasePointerCapture?.(event.pointerId);
+    if (dragTarget.hasPointerCapture?.(event.pointerId)) {
+      dragTarget.releasePointerCapture(event.pointerId);
+    }
     dragTarget = null;
     event.preventDefault();
   }
