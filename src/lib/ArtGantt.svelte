@@ -179,8 +179,14 @@
 
   // ─── Временная шкала ─────────────────────────────────────────
   const DAY_MS = 86400000;
-  const DAY_WIDTH = 40;
   const LANE_HEIGHT = 28; // высота одной подстроки
+
+  // Масштаб: 1.0 = 40px на день
+  let scale = $state(1.0);
+  const MIN_SCALE = 0.3;
+  const MAX_SCALE = 3.0;
+  const BASE_DAY_WIDTH = 40;
+  let dayWidth = $derived(BASE_DAY_WIDTH * scale);
 
   // Русские названия месяцев
   const MONTH_NAMES = [
@@ -197,13 +203,13 @@
   const VIEW_START = new Date(currentYear, currentMonth - 3, 1);
   // Конец: текущий месяц + 6 месяцев вперёд (последнее число)
   const VIEW_END = new Date(currentYear, currentMonth + 7, 0); // день 0 = последний день предыдущего месяца
-  const TOTAL_DAYS = Math.round((VIEW_END - VIEW_START) / DAY_MS) + 1;
+  let totalDays = $derived(Math.round((VIEW_END - VIEW_START) / DAY_MS) + 1);
 
   // Смещение в пикселях от VIEW_START до начала текущего месяца
   let scrollToCurrentMonth = $derived.by(() => {
     const monthStart = new Date(currentYear, currentMonth, 1);
     const diff = monthStart - VIEW_START;
-    return Math.max(0, (diff / DAY_MS) * DAY_WIDTH);
+    return Math.max(0, (diff / DAY_MS) * dayWidth);
   });
 
   // Позиция линии "сегодня" в пикселях от левого края временной шкалы
@@ -211,12 +217,12 @@
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const diff = today - VIEW_START;
-    return (diff / DAY_MS) * DAY_WIDTH;
+    return (diff / DAY_MS) * dayWidth;
   });
 
   let days = $derived.by(() => {
     const arr = [];
-    for (let i = 0; i < TOTAL_DAYS; i++) {
+    for (let i = 0; i < totalDays; i++) {
       const d = new Date(VIEW_START);
       d.setDate(d.getDate() + i);
       arr.push(d);
@@ -261,13 +267,13 @@
   // ─── Позиционирование ивента ─────────────────────────────────
   function getEventLeft(event) {
     const diff = event.start - VIEW_START;
-    return (diff / DAY_MS) * DAY_WIDTH;
+    return (diff / DAY_MS) * dayWidth;
   }
 
   function getEventWidth(event) {
     // Ширина от start до deadline
     const diff = event.deadline - event.start;
-    return Math.max((diff / DAY_MS) * DAY_WIDTH, DAY_WIDTH * 0.5);
+    return Math.max((diff / DAY_MS) * dayWidth, dayWidth * 0.5);
   }
 
   // Процент ширины, который занимает период набора (start→end) относительно всей карточки (start→deadline)
@@ -538,6 +544,28 @@
   // Telegram Web App на ПК замедляет wheel-события, поэтому
   // умножаем deltaY на этот коэффициент для компенсации.
   const SCROLL_SPEED_MULTIPLIER = 1;
+
+  // ─── Изменение масштаба ──────────────────────────────────────
+  function changeScale(delta) {
+    const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale + delta));
+    if (newScale === scale) return;
+    // Сохраняем позицию скролла относительно центра видимой области
+    const container = ganttBodyEl;
+    const oldScrollLeft = container?.scrollLeft ?? 0;
+    const oldDayWidth = dayWidth;
+    scale = newScale;
+    // Восстанавливаем скролл после изменения масштаба, чтобы центр остался на месте
+    if (container) {
+      requestAnimationFrame(() => {
+        const newDayWidth = BASE_DAY_WIDTH * scale;
+        const ratio = newDayWidth / oldDayWidth;
+        container.scrollLeft = Math.round(oldScrollLeft * ratio);
+      });
+    }
+  }
+
+  function zoomIn() { changeScale(0.2); }
+  function zoomOut() { changeScale(-0.2); }
 
   // ─── Drag-to-scroll состояние ────────────────────────────────
   let isDragging = $state(false);
@@ -838,13 +866,13 @@
         <!-- ─── ШАПКА: ВРЕМЕННАЯ ШКАЛА (sticky сверху) ──────── -->
         <div class="gantt-header">
           <div class="header-timescale-scroll">
-            <div class="header-timescale" style="width: {TOTAL_DAYS * DAY_WIDTH}px">
+            <div class="header-timescale" style="width: {totalDays * dayWidth}px">
               <!-- Строка месяцев -->
               <div class="timescale-months">
                 {#each months as month}
                   <div
                     class="timescale-month"
-                    style="width: {month.days.length * DAY_WIDTH}px"
+                    style="width: {month.days.length * dayWidth}px"
                   >
                     <span class="timescale-month-label">{month.label}</span>
                   </div>
@@ -856,7 +884,7 @@
                   <div
                     class="timescale-day"
                     class:weekend={day.getDay() === 0 || day.getDay() === 6}
-                    style="width: {DAY_WIDTH}px"
+                    style="width: {dayWidth}px"
                   >
                     {day.getDate()}
                   </div>
@@ -891,7 +919,7 @@
               class="row-events"
               role="region"
               aria-label="События категории {cat.label}"
-              style="width: {TOTAL_DAYS * DAY_WIDTH}px; min-width: {TOTAL_DAYS * DAY_WIDTH}px"
+              style="width: {totalDays * dayWidth}px; min-width: {totalDays * dayWidth}px"
             >
               {#each catData.lanes as lane, laneIdx}
                 {#each lane as evt (evt.id)}
@@ -918,6 +946,36 @@
         {/each}
       </div>
     </div>
+  </div>
+
+  <!-- ─── КНОПКИ МАСШТАБИРОВАНИЯ (правый нижний угол) ──────── -->
+  <div class="zoom-controls">
+    <button
+      class="zoom-btn"
+      onclick={zoomIn}
+      disabled={scale >= MAX_SCALE}
+      aria-label="Приблизить"
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        <line x1="11" y1="8" x2="11" y2="14"/>
+        <line x1="8" y1="11" x2="14" y2="11"/>
+      </svg>
+    </button>
+    <span class="zoom-label">{Math.round(scale * 100)}%</span>
+    <button
+      class="zoom-btn"
+      onclick={zoomOut}
+      disabled={scale <= MIN_SCALE}
+      aria-label="Отдалить"
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        <line x1="8" y1="11" x2="14" y2="11"/>
+      </svg>
+    </button>
   </div>
 </section>
 
@@ -1312,6 +1370,59 @@
     line-height: 1;
   }
 
+  /* ─── КНОПКИ МАСШТАБИРОВАНИЯ (правый нижний угол) ────────── */
+  .zoom-controls {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 4px 6px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .zoom-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    color: #475569;
+    transition: background 0.15s, transform 0.15s;
+  }
+
+  .zoom-btn:hover:not(:disabled) {
+    background: #e2e8f0;
+    transform: scale(1.05);
+  }
+
+  .zoom-btn:active:not(:disabled) {
+    transform: scale(0.93);
+  }
+
+  .zoom-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .zoom-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    min-width: 36px;
+    text-align: center;
+    user-select: none;
+  }
+
   /* ─── МОБИЛЬНАЯ АДАПТАЦИЯ ────────────────────────────────── */
   @media (max-width: 768px) {
     .gantt-left-column {
@@ -1320,6 +1431,22 @@
 
     .gantt-header {
       border-bottom: 1px solid #e2e8f0;
+    }
+
+    .zoom-controls {
+      bottom: 12px;
+      right: 12px;
+      padding: 3px 5px;
+    }
+
+    .zoom-btn {
+      width: 28px;
+      height: 28px;
+    }
+
+    .zoom-label {
+      font-size: 0.7rem;
+      min-width: 30px;
     }
   }
 </style>
