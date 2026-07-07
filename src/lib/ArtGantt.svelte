@@ -951,7 +951,7 @@
     background: #ffffff;
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 20;
     /* Шапка не скроллится сама — она двигается за счёт родительского .gantt-scroll */
     overflow: visible;
   }
@@ -969,7 +969,7 @@
     background: #ffffff;
     position: sticky;
     left: 0;
-    z-index: 15;
+    z-index: 25;
     width: 200px;
     box-sizing: border-box;
     flex-shrink: 0;

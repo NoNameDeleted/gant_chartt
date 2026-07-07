@@ -118,6 +118,7 @@
   }
 
   /* Контент поверх фона — строка */
+  /* Прозрачный фон, без тени — полоска ивента однородная */
   .card-content {
     position: absolute;
     left: 0;
@@ -130,10 +131,8 @@
     align-items: center;
     gap: 0.35rem;
     box-sizing: border-box;
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 0.3rem;
+    background: transparent;
     min-width: max-content;
-    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.06);
     pointer-events: none;
   }
 
