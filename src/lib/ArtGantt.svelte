@@ -514,38 +514,36 @@
   let lastTapTime = 0;
   const DOUBLE_TAP_DELAY = 300; // мс
 
-  // Drag-to-scroll состояние (общее для ивентов и пустых областей)
-  let isDragging = $state(false);
-  let dragStartX = 0;
-  let dragStartScrollLeft = 0;
-  let dragTarget = null;
-
   // Флаг: было ли реальное перемещение во время текущего нажатия
   let hasDraggedDuringPress = false;
 
-  function handleEventPointerDown(event, evt) {
-    event.stopPropagation();
-    // Предотвращаем всплытие к родительскому gantt-scroll, чтобы drag-to-scroll
-    // не перехватил pointerdown на мобильных устройствах
+  // ─── Определение мобильного устройства ───────────────────────
+  let isTouchDevice = $state(false);
+
+  $effect(() => {
+    isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  });
+
+  // ─── Long-press через touch-события (для реальных мобильных) ──
+  function handleEventTouchStart(event, evt) {
+    // Предотвращаем скролл и контекстное меню при долгом нажатии
     event.preventDefault();
-    // Запоминаем последний кликнутый ивент для кнопки редактирования ✏️
     lastClickedEvent = evt;
-    // Захватываем указатель, чтобы pointermove продолжал приходить даже за пределами карточки
-    event.currentTarget.setPointerCapture(event.pointerId);
-    eventLongPressStartX = event.clientX;
-    eventLongPressStartY = event.clientY;
+
+    const touch = event.touches[0];
+    eventLongPressStartX = touch.clientX;
+    eventLongPressStartY = touch.clientY;
     hasDraggedDuringPress = false;
+
     if (eventLongPressTimer) clearTimeout(eventLongPressTimer);
     eventLongPressTimer = setTimeout(() => {
-      // Не открываем редактор, если было реальное перетаскивание
       if (hasDraggedDuringPress) return;
       openEditor(evt);
     }, 600);
 
-    // Детекция двойного тапа в pointerdown (первый тап — ничего не делаем, второй — открываем ссылку)
+    // Детекция двойного тапа
     const now = Date.now();
     if (lastTapEvent === evt && now - lastTapTime < DOUBLE_TAP_DELAY) {
-      // Двойной тап — открываем ссылку
       lastTapEvent = null;
       lastTapTime = 0;
       if (evt.link) {
@@ -555,88 +553,94 @@
       lastTapEvent = evt;
       lastTapTime = now;
     }
+  }
 
-    // Инициализация drag-to-scroll
-    if (event.button === 0) {
-      isDragging = true;
-      dragStartX = event.clientX;
-      dragTarget = event.currentTarget.closest('.gantt-scroll, .header-timescale-scroll');
-      if (dragTarget) {
-        dragStartScrollLeft = dragTarget.scrollLeft;
+  function handleEventTouchMove(event) {
+    if (!eventLongPressTimer) return;
+    const touch = event.touches[0];
+    const dx = touch.clientX - eventLongPressStartX;
+    const dy = touch.clientY - eventLongPressStartY;
+    // Если палец сдвинулся больше чем на 15px — это скролл, отменяем long-press
+    if (Math.abs(dx) > 15 || Math.abs(dy) > 15) {
+      clearTimeout(eventLongPressTimer);
+      eventLongPressTimer = null;
+      hasDraggedDuringPress = true;
+    }
+  }
+
+  function handleEventTouchEnd(event) {
+    if (eventLongPressTimer) {
+      clearTimeout(eventLongPressTimer);
+      eventLongPressTimer = null;
+    }
+    hasDraggedDuringPress = false;
+  }
+
+  function handleEventTouchCancel(event) {
+    if (eventLongPressTimer) {
+      clearTimeout(eventLongPressTimer);
+      eventLongPressTimer = null;
+    }
+    hasDraggedDuringPress = false;
+  }
+
+  // ─── Pointer-события для ПК ──────────────────────────────────
+  function handleEventPointerDown(event, evt) {
+    // На мобильных устройствах используем touch-события, pointer игнорируем
+    if (isTouchDevice) return;
+    event.stopPropagation();
+    event.preventDefault();
+    lastClickedEvent = evt;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    eventLongPressStartX = event.clientX;
+    eventLongPressStartY = event.clientY;
+    hasDraggedDuringPress = false;
+    if (eventLongPressTimer) clearTimeout(eventLongPressTimer);
+    eventLongPressTimer = setTimeout(() => {
+      if (hasDraggedDuringPress) return;
+      openEditor(evt);
+    }, 600);
+
+    // Детекция двойного тапа
+    const now = Date.now();
+    if (lastTapEvent === evt && now - lastTapTime < DOUBLE_TAP_DELAY) {
+      lastTapEvent = null;
+      lastTapTime = 0;
+      if (evt.link) {
+        window.open(evt.link, "_blank");
       }
+    } else {
+      lastTapEvent = evt;
+      lastTapTime = now;
     }
   }
 
   function handleEventPointerUp(event) {
+    if (isTouchDevice) return;
     if (event) event.stopPropagation();
     if (eventLongPressTimer) {
       clearTimeout(eventLongPressTimer);
       eventLongPressTimer = null;
     }
-    // Завершаем drag-to-scroll
-    isDragging = false;
-    dragTarget = null;
     hasDraggedDuringPress = false;
   }
 
   function handleEventPointerMove(event) {
-    if (!eventLongPressTimer && !isDragging) return;
+    if (isTouchDevice) return;
+    if (!eventLongPressTimer) return;
     const dx = event.clientX - eventLongPressStartX;
     const dy = event.clientY - eventLongPressStartY;
-    // На мобильных устройствах палец менее стабилен, поэтому увеличиваем порог
-    // с 10px до 15px, чтобы случайное дрожание не отменяло long-press
     if (Math.abs(dx) > 15 || Math.abs(dy) > 15) {
       clearTimeout(eventLongPressTimer);
       eventLongPressTimer = null;
+      hasDraggedDuringPress = true;
     }
-    // Drag-to-scroll
-    if (isDragging && dragTarget) {
-      dragTarget.scrollLeft = dragStartScrollLeft - dx;
-    }
-  }
-
-  // ─── Drag-to-scroll для пустых областей (gantt-scroll и header) ──
-  function handleDragPointerDown(event) {
-    if (event.button !== 0) return;
-    // Не перехватываем pointerdown, если он пришёл с карточки ивента —
-    // это важно для мобильных устройств, где event.preventDefault() в
-    // handleEventPointerDown может не сработать (особенно в WebView Telegram)
-    if (event.target && event.target.closest('.event-card')) return;
-    isDragging = true;
-    dragStartX = event.clientX;
-    dragTarget = event.currentTarget;
-    dragStartScrollLeft = dragTarget.scrollLeft;
-    dragTarget.setPointerCapture(event.pointerId);
-    dragTarget.style.cursor = 'grabbing';
-    event.preventDefault();
-  }
-
-  function handleDragPointerMove(event) {
-    if (!isDragging || !dragTarget) return;
-    // Помечаем, что было реальное перетаскивание (чтобы long press не открыл редактор)
-    hasDraggedDuringPress = true;
-    const dx = event.clientX - dragStartX;
-    dragTarget.scrollLeft = dragStartScrollLeft - dx;
-    event.preventDefault();
-  }
-
-  function handleDragPointerUp(event) {
-    if (!isDragging || !dragTarget) return;
-    isDragging = false;
-    dragTarget.style.cursor = '';
-    dragTarget.releasePointerCapture?.(event.pointerId);
-    dragTarget = null;
-    hasDraggedDuringPress = false;
-    event.preventDefault();
   }
 
   // ─── Обработчики для пустого места ───────────────────────────
   let emptyLongPressTimer = null;
 
   function handleEmptyPointerDown(event) {
-    // НЕ вызываем event.preventDefault() — на мобильных устройствах это блокирует
-    // pointer-события и мешает long-press. Контекстное меню браузера при долгом
-    // нажатии на пустое место не критично.
     if (emptyLongPressTimer) clearTimeout(emptyLongPressTimer);
     emptyLongPressTimer = setTimeout(() => {
       openEditor();
@@ -644,7 +648,6 @@
   }
 
   function handleEmptyPointerMove(event) {
-    // Если палец/курсор сдвинулся — отменяем долгое нажатие (это скролл)
     if (emptyLongPressTimer) {
       clearTimeout(emptyLongPressTimer);
       emptyLongPressTimer = null;
@@ -820,11 +823,6 @@
         class="header-timescale-scroll"
         bind:this={headerScrollEl}
         onscroll={handleHeaderScroll}
-        onpointerdown={handleDragPointerDown}
-        onpointermove={handleDragPointerMove}
-        onpointerup={handleDragPointerUp}
-        onpointerleave={handleDragPointerUp}
-        onpointercancel={handleDragPointerUp}
       >
         <div class="header-corner" bind:this={headerCornerEl}>
           <span class="header-corner-text">Категория</span>
@@ -881,11 +879,6 @@
         class="gantt-scroll"
         bind:this={ganttBodyEl}
         onscroll={handleBodyScroll}
-        onpointerdown={handleDragPointerDown}
-        onpointermove={handleDragPointerMove}
-        onpointerup={handleDragPointerUp}
-        onpointerleave={handleDragPointerUp}
-        onpointercancel={handleDragPointerUp}
       >
         {#each categories as cat}
           {@const catData = eventsByCategory[cat.id]}
@@ -895,11 +888,6 @@
             role="region"
             aria-label="Строка категории {cat.label}"
             style="min-height: {Math.max(catData.totalLanes * LANE_HEIGHT + 16, 60)}px"
-            onpointerdown={handleEmptyPointerDown}
-            onpointermove={handleEmptyPointerMove}
-            onpointerup={handleEmptyPointerUp}
-            onpointerleave={handleEmptyPointerUp}
-            onpointercancel={handleEmptyPointerUp}
           >
             <!-- Затемнение фона слева от сегодняшней даты (на всю высоту строки) -->
             <div
@@ -927,11 +915,17 @@
                       event={evt}
                       color={cat.color}
                       endPortion={getEndPortion(evt)}
+                      // Pointer-события для ПК
                       onpointerdown={(e) => handleEventPointerDown(e, evt)}
                       onpointermove={handleEventPointerMove}
                       onpointerup={handleEventPointerUp}
                       onpointerleave={handleEventPointerUp}
                       onpointercancel={handleEventPointerUp}
+                      // Touch-события для реальных мобильных устройств
+                      ontouchstart={(e) => handleEventTouchStart(e, evt)}
+                      ontouchmove={handleEventTouchMove}
+                      ontouchend={handleEventTouchEnd}
+                      ontouchcancel={handleEventTouchCancel}
                     />
                   </div>
                 {/each}

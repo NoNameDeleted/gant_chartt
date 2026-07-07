@@ -7,6 +7,10 @@
     onpointerup,
     onpointerleave,
     onpointercancel,
+    ontouchstart,
+    ontouchmove,
+    ontouchend,
+    ontouchcancel,
   } = $props();
 
   // Светлая версия цвета для периода после набора (end → deadline)
@@ -44,6 +48,10 @@
   {onpointerup}
   {onpointerleave}
   {onpointercancel}
+  {ontouchstart}
+  {ontouchmove}
+  {ontouchend}
+  {ontouchcancel}
   onkeydown={handleKeyDown}
 >
   <!-- Двухцветный фон: если есть набор — левая часть яркая, правая светлая -->
@@ -89,7 +97,7 @@
     transition: box-shadow 0.15s, transform 0.1s;
     user-select: none;
     -webkit-user-select: none;
-    touch-action: none;
+    touch-action: manipulation;
   }
 
   .event-card:hover {
