@@ -741,7 +741,7 @@
   // ─── Высота контейнера ───────────────────────────────────────
   let containerHeight = $state(800);
 
-  // ─── Скролл к текущему месяцу при загрузке ───────────────────
+  // ─── Скролл к текущему дню при загрузке ──────────────────────
   let initialScrolled = $state(false);
 
   $effect(() => {
@@ -749,7 +749,19 @@
     if (ganttBodyEl && !loading && !initialScrolled) {
       initialScrolled = true;
       requestAnimationFrame(() => {
-        ganttBodyEl.scrollLeft = scrollToCurrentMonth + 800;
+        // Определяем ширину контейнера
+        const containerWidth = ganttBodyEl.clientWidth;
+        const isMobile = containerWidth < 768;
+
+        // На мобильных: todayPosition у левого края с небольшим отступом (20px),
+        // чтобы серая полоска была видна, но не вплотную к краю.
+        // На десктопах: todayPosition с отступом, чтобы полоска была слева,
+        // но видна левая колонка (200px) + небольшой запас.
+        const offset = isMobile
+          ? Math.max(0, todayPosition - 20)
+          : Math.max(0, todayPosition - 220);
+
+        ganttBodyEl.scrollLeft = offset;
         // Вызываем sticky-эффект после скролла
         setTimeout(() => updateStickyLabels(), 100);
       });
