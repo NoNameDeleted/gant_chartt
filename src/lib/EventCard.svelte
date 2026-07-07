@@ -95,9 +95,15 @@
   .event-card-selected {
     outline: 2px solid #3b82f6;
     outline-offset: 1px;
-    transform: scale(1.3);
-    transform-origin: center center;
     z-index: 10;
+    transform: scaleY(1.3);
+    transform-origin: center center;
+  }
+
+  /* Компенсируем растяжение текста по высоте — шрифт остаётся нормальным */
+  .event-card-selected .card-content {
+    transform: scaleY(0.77);
+    transform-origin: center center;
   }
 
   /* Двухцветные сегменты фона */
