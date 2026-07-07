@@ -11,6 +11,12 @@ interface TelegramWebApp {
   openLink(url: string): void;
 
   /**
+   * Открывает внутреннюю ссылку Telegram (t.me) прямо в Telegram.
+   * Не закрывает и не сворачивает Mini App.
+   */
+  openTelegramLink(url: string): void;
+
+  /**
    * Закрывает Mini App.
    */
   close(): void;

@@ -1,9 +1,11 @@
 /**
  * Утилита для открытия ссылок в Telegram Mini App.
  *
- * В Telegram Mini App использует Telegram.WebApp.openLink(url),
- * который открывает ссылку во встроенном браузере Telegram,
- * не сворачивая и не закрывая Mini App.
+ * В Telegram Mini App:
+ * - Для внутренних ссылок Telegram (t.me) использует Telegram.WebApp.openTelegramLink(url),
+ *   который открывает ссылку прямо в Telegram, не закрывая Mini App.
+ * - Для остальных ссылок использует Telegram.WebApp.openLink(url),
+ *   который открывает во встроенном браузере Telegram.
  *
  * Вне Telegram использует обычный window.open(url, "_blank").
  */
@@ -17,9 +19,25 @@ export function isTelegramWebApp() {
 }
 
 /**
+ * Проверяет, является ли ссылка внутренней ссылкой Telegram.
+ * @param {string} url
+ * @returns {boolean}
+ */
+function isTelegramLink(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === 't.me' || parsed.hostname.endsWith('.t.me');
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Безопасно открывает ссылку.
- * В Telegram Mini App — через Telegram.WebApp.openLink (не закрывает приложение).
- * Вне Telegram — через window.open.
+ * В Telegram Mini App:
+ *   - t.me ссылки → Telegram.WebApp.openTelegramLink (открывается в Telegram, не закрывая Mini App)
+ *   - остальные → Telegram.WebApp.openLink (во встроенном браузере Telegram)
+ * Вне Telegram → window.open.
  *
  * @param {string} url - Ссылка для открытия
  */
@@ -28,9 +46,14 @@ export function openLink(url) {
 
   try {
     if (isTelegramWebApp()) {
-      // Telegram.WebApp.openLink открывает ссылку во встроенном браузере Telegram,
-      // не сворачивая Mini App
-      window.Telegram.WebApp.openLink(url);
+      if (isTelegramLink(url)) {
+        // openTelegramLink открывает t.me ссылки прямо в Telegram,
+        // не сворачивая и не закрывая Mini App
+        window.Telegram.WebApp.openTelegramLink(url);
+      } else {
+        // openLink открывает обычные ссылки во встроенном браузере Telegram
+        window.Telegram.WebApp.openLink(url);
+      }
     } else {
       window.open(url, '_blank');
     }
