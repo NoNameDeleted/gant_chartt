@@ -802,23 +802,25 @@
     {/if}
 
     <!-- ─── ТЕЛО: ЕДИНЫЙ СКРОЛЛ-КОНТЕЙНЕР (шапка + строки) ── -->
-    <!-- Весь горизонтальный скролл происходит здесь, через ganttBodyEl.
-         Шапка приклеена сверху через position: sticky, поэтому скроллится
-         синхронно с телом — без JS-синхронизации. -->
     <div class="gantt-body">
-      <!-- Фиксированная колонка с названиями категорий (вертикальный скролл) -->
-      <div class="gantt-labels" bind:this={ganttLabelsEl} onscroll={handleLabelsScroll}>
-        {#each categories as cat}
-          {@const catData = eventsByCategory[cat.id]}
-          <div
-            class="row-label"
-            style="min-height: {Math.max(catData.totalLanes * LANE_HEIGHT + 16, 60)}px"
-          >
-            <span class="row-label-dot" style="background: {cat.color}"></span>
-            <span class="row-label-text">{cat.label}</span>
-            <span class="row-label-count">{catData.lanes.reduce((sum, lane) => sum + lane.length, 0)}</span>
-          </div>
-        {/each}
+      <!-- Фиксированная левая колонка: шапка "Категория" + названия категорий -->
+      <div class="gantt-left-column">
+        <div class="header-corner" bind:this={headerCornerEl}>
+          <span class="header-corner-text">Категория</span>
+        </div>
+        <div class="gantt-labels" bind:this={ganttLabelsEl} onscroll={handleLabelsScroll}>
+          {#each categories as cat}
+            {@const catData = eventsByCategory[cat.id]}
+            <div
+              class="row-label"
+              style="min-height: {Math.max(catData.totalLanes * LANE_HEIGHT + 16, 60)}px"
+            >
+              <span class="row-label-dot" style="background: {cat.color}"></span>
+              <span class="row-label-text">{cat.label}</span>
+              <span class="row-label-count">{catData.lanes.reduce((sum, lane) => sum + lane.length, 0)}</span>
+            </div>
+          {/each}
+        </div>
       </div>
 
       <!-- Единый скроллящийся контейнер: шапка + строки ивентов -->
@@ -835,9 +837,6 @@
       >
         <!-- ─── ШАПКА: ВРЕМЕННАЯ ШКАЛА (sticky сверху) ──────── -->
         <div class="gantt-header">
-          <div class="header-corner" bind:this={headerCornerEl}>
-            <span class="header-corner-text">Категория</span>
-          </div>
           <div class="header-timescale-scroll">
             <div class="header-timescale" style="width: {TOTAL_DAYS * DAY_WIDTH}px">
               <!-- Строка месяцев -->
@@ -943,7 +942,18 @@
     position: relative;
   }
 
-  /* ─── ШАПКА (внутри единого скролл-контейнера) ──────────── */
+  /* ─── ЛЕВАЯ КОЛОНКА (фиксированная) ──────────────────────── */
+  .gantt-left-column {
+    flex: 0 0 200px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #e2e8f0;
+    z-index: 15;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
+  /* ─── ШАПКА ВНУТРИ ЕДИНОГО СКРОЛЛ-КОНТЕЙНЕРА ──────────── */
   .gantt-header {
     display: flex;
     flex-shrink: 0;
@@ -951,28 +961,24 @@
     background: #ffffff;
     position: sticky;
     top: 0;
-    z-index: 20;
-    /* Шапка не скроллится сама — она двигается за счёт родительского .gantt-scroll */
-    overflow: visible;
+    z-index: 10;
   }
 
   .header-corner {
     display: flex;
     align-items: center;
     padding: 0.5rem 1rem;
-    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
     font-weight: 700;
     font-size: 0.85rem;
     color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     background: #ffffff;
-    position: sticky;
-    left: 0;
-    z-index: 25;
     width: 200px;
     box-sizing: border-box;
     flex-shrink: 0;
+    height: 80px; /* 56px (месяцы) + 24px (дни) */
   }
 
   .header-timescale-scroll {
@@ -1060,12 +1066,10 @@
   }
 
   .gantt-labels {
-    flex: 0 0 200px;
+    flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
     background: #ffffff;
-    border-right: 1px solid #e2e8f0;
-    z-index: 15;
     scrollbar-width: none;
   }
 
