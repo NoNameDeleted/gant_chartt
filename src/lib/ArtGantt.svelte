@@ -939,7 +939,7 @@
               class="row-events"
               role="region"
               aria-label="События категории {cat.label}"
-              style="width: {totalDays * dayWidth}px; min-width: {totalDays * dayWidth}px"
+              style="width: {totalDays * dayWidth}px; min-width: {totalDays * dayWidth}px; height: {catData.rowHeight}px"
             >
               {#each catData.lanes as lane, laneIdx}
                 <!-- Контейнер для одной lane с динамической высотой -->
