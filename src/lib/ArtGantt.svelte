@@ -1314,11 +1314,7 @@
 
   /* ─── МОБИЛЬНАЯ АДАПТАЦИЯ ────────────────────────────────── */
   @media (max-width: 768px) {
-    .header-corner {
-      display: none;
-    }
-
-    .gantt-labels {
+    .gantt-left-column {
       display: none;
     }
 
