@@ -507,9 +507,11 @@
   // ─── Выделение ивента рамкой ─────────────────────────────────
   let selectedEventId = $state(null);
 
-  // ─── Анимация кнопки ✏️ при нажатии на ивент ────────────────
+  // ─── Анимация кнопок ✏️ и 🔗 при нажатии на ивент ──────────
   let editBtnPressed = $state(false);
   let editBtnPressTimer = null;
+  let linkBtnPressed = $state(false);
+  let linkBtnPressTimer = null;
 
   function pressEditButton() {
     editBtnPressed = true;
@@ -517,6 +519,15 @@
     editBtnPressTimer = setTimeout(() => {
       editBtnPressed = false;
       editBtnPressTimer = null;
+    }, 150);
+  }
+
+  function pressLinkButton() {
+    linkBtnPressed = true;
+    if (linkBtnPressTimer) clearTimeout(linkBtnPressTimer);
+    linkBtnPressTimer = setTimeout(() => {
+      linkBtnPressed = false;
+      linkBtnPressTimer = null;
     }, 150);
   }
 
@@ -546,11 +557,12 @@
   // События должны свободно всплывать до .gantt-scroll для drag-to-scroll.
 
   function handleEventPointerDown(event, evt) {
-    // Просто запоминаем, какой ивент нажали (для кнопки ✏️ и выделения)
+    // Просто запоминаем, какой ивент нажали (для кнопок ✏️ 🔗 и выделения)
     lastClickedEvent = evt;
     selectedEventId = evt.id;
-    // Анимируем кнопку ✏️ синхронно с нажатием на ивент
+    // Анимируем кнопки ✏️ и 🔗 синхронно с нажатием на ивент
     pressEditButton();
+    pressLinkButton();
   }
 
   function handleEventPointerUp(event, evt) {
@@ -745,6 +757,18 @@
   <div class="gantt-wrapper">
     <!-- ─── КНОПКИ (правый верхний угол) ──────────────────────── -->
     <div class="header-actions">
+      <button
+        class="header-action-btn link-event-btn"
+        class:link-event-btn-pressed={linkBtnPressed}
+        onclick={() => lastClickedEvent?.link && window.open(lastClickedEvent.link, "_blank")}
+        disabled={!lastClickedEvent?.link}
+        aria-label="Открыть ссылку ивента"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+        </svg>
+      </button>
       <button
         class="header-action-btn edit-event-btn"
         class:edit-event-btn-pressed={editBtnPressed}
@@ -989,7 +1013,7 @@
 
   .timescale-months {
     display: flex;
-    height: 28px;
+    height: 56px;
     border-bottom: 1px solid #e2e8f0;
     background: #f1f5f9;
   }
@@ -1010,11 +1034,12 @@
     position: relative;
     z-index: 5;
     background: #f1f5f9;
-    padding: 0 10px;
+    padding: 0 14px;
     height: 100%;
     display: flex;
     align-items: center;
     white-space: nowrap;
+    font-size: 0.9rem;
   }
 
   /* Вертикальная линия "сегодня" в шапке */
@@ -1232,6 +1257,34 @@
     opacity: 0.35;
     cursor: not-allowed;
     box-shadow: none;
+  }
+
+  /* ─── КНОПКА ССЫЛКИ (ЦЕПОЧКА) ─────────────────────────────── */
+  .link-event-btn {
+    background: #3b82f6;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+  }
+
+  .link-event-btn:hover:not(:disabled) {
+    background: #2563eb;
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
+  }
+
+  .link-event-btn:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  .link-event-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  /* Анимация кнопки 🔗 при нажатии на ивент — синхронно с карточкой */
+  .link-event-btn-pressed {
+    transform: scale(0.95);
   }
 
   /* ─── СТАТУС-БАР ──────────────────────────────────────────── */
