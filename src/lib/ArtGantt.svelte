@@ -504,20 +504,10 @@
     }
   }
 
-  // ─── Обработчики для ивентов ─────────────────────────────────
-  let eventLongPressTimer = null;
-  let eventLongPressStartX = 0;
-  let eventLongPressStartY = 0;
+  // ─── Выделение ивента рамкой ─────────────────────────────────
+  let selectedEventId = $state(null);
 
-  // Для детекции двойного тапа (работает и на ПК, и на мобильных)
-  let lastTapEvent = null;
-  let lastTapTime = 0;
-  const DOUBLE_TAP_DELAY = 300; // мс
-
-  // Флаг: было ли реальное перемещение во время текущего нажатия
-  let hasDraggedDuringPress = false;
-
-  // Drag-to-scroll состояние (только для ПК)
+  // ─── Drag-to-scroll состояние ────────────────────────────────
   let isDragging = $state(false);
   let dragStartX = 0;
   let dragStartScrollLeft = 0;
@@ -530,144 +520,70 @@
     isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   });
 
-  // ─── Long-press через touch-события (для реальных мобильных) ──
-  function handleEventTouchStart(event, evt) {
-    // Предотвращаем скролл и контекстное меню при долгом нажатии
-    event.preventDefault();
-    // Блокируем обработку жестов на уровне элемента (важно для Telegram WebView)
-    const target = event.currentTarget;
-    target.style.touchAction = 'none';
-    lastClickedEvent = evt;
+  // ─── Детекция двойного тапа ──────────────────────────────────
+  let lastTapEventId = null;
+  let lastTapTime = 0;
+  const DOUBLE_TAP_DELAY = 300; // мс
 
-    const touch = event.touches[0];
-    eventLongPressStartX = touch.clientX;
-    eventLongPressStartY = touch.clientY;
-    hasDraggedDuringPress = false;
+  // ─── Обработчики для ивентов ─────────────────────────────────
+  // На ПК: pointerdown → pointermove (drag-to-scroll) → pointerup
+  // На мобильных: touchstart → touchmove (нативный скролл) → touchend
+  //
+  // ВАЖНО: Никакой stopPropagation/preventDefault/setPointerCapture на карточке!
+  // События должны свободно всплывать до .gantt-scroll для drag-to-scroll.
 
-    if (eventLongPressTimer) clearTimeout(eventLongPressTimer);
-    eventLongPressTimer = setTimeout(() => {
-      if (hasDraggedDuringPress) return;
-      openEditor(evt);
-    }, 600);
-  }
-
-  function handleEventTouchMove(event) {
-    if (!eventLongPressTimer) return;
-    const touch = event.touches[0];
-    const dx = touch.clientX - eventLongPressStartX;
-    const dy = touch.clientY - eventLongPressStartY;
-    // Если палец сдвинулся больше чем на 15px — это скролл, отменяем long-press
-    if (Math.abs(dx) > 15 || Math.abs(dy) > 15) {
-      clearTimeout(eventLongPressTimer);
-      eventLongPressTimer = null;
-      hasDraggedDuringPress = true;
-    }
-  }
-
-  function handleEventTouchEnd(event, evt) {
-    // Если был long-press (таймер сработал) — не открываем ссылку
-    if (!eventLongPressTimer && !hasDraggedDuringPress) {
-      // Long-press НЕ сработал и не было перетаскивания — это обычный тап
-      // Детекция двойного тапа
-      const now = Date.now();
-      if (lastTapEvent === evt && now - lastTapTime < DOUBLE_TAP_DELAY) {
-        // Двойной тап — открываем ссылку
-        lastTapEvent = null;
-        lastTapTime = 0;
-        if (evt.link) {
-          window.open(evt.link, "_blank");
-        }
-      } else {
-        lastTapEvent = evt;
-        lastTapTime = now;
-      }
-    }
-
-    if (eventLongPressTimer) {
-      clearTimeout(eventLongPressTimer);
-      eventLongPressTimer = null;
-    }
-    // Восстанавливаем touch-action после завершения касания
-    const target = event.currentTarget;
-    target.style.touchAction = '';
-    hasDraggedDuringPress = false;
-  }
-
-  function handleEventTouchCancel(event) {
-    if (eventLongPressTimer) {
-      clearTimeout(eventLongPressTimer);
-      eventLongPressTimer = null;
-    }
-    // Восстанавливаем touch-action после отмены касания
-    const target = event.currentTarget;
-    target.style.touchAction = '';
-    hasDraggedDuringPress = false;
-  }
-
-  // ─── Pointer-события для ПК ──────────────────────────────────
   function handleEventPointerDown(event, evt) {
-    event.stopPropagation();
-    event.preventDefault();
+    // Просто запоминаем, какой ивент нажали (для кнопки ✏️ и выделения)
     lastClickedEvent = evt;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    eventLongPressStartX = event.clientX;
-    eventLongPressStartY = event.clientY;
-    hasDraggedDuringPress = false;
-    if (eventLongPressTimer) clearTimeout(eventLongPressTimer);
-    eventLongPressTimer = setTimeout(() => {
-      if (hasDraggedDuringPress) return;
-      openEditor(evt);
-    }, 600);
+    selectedEventId = evt.id;
   }
 
   function handleEventPointerUp(event, evt) {
-    if (event) event.stopPropagation();
-    if (eventLongPressTimer) {
-      clearTimeout(eventLongPressTimer);
-      eventLongPressTimer = null;
-    }
+    // Если это pointerup на touch-устройстве — игнорируем (touchend уже обработал)
+    if (event && event.pointerType === 'touch') return;
 
-    // Детекция двойного тапа: первый тап запоминает ивент и время,
-    // второй тап (в течение DOUBLE_TAP_DELAY) открывает ссылку.
-    // Используем lastTapEvent как флаг "предыдущего тапа":
-    // если lastTapEvent === evt — это второй тап по тому же ивенту
-    if (!hasDraggedDuringPress && evt) {
+    // Детекция двойного тапа
+    if (evt) {
       const now = Date.now();
-      if (lastTapEvent === evt && now - lastTapTime < DOUBLE_TAP_DELAY) {
-        // Второй тап — открываем ссылку
-        lastTapEvent = null;
+      if (lastTapEventId === evt.id && now - lastTapTime < DOUBLE_TAP_DELAY) {
+        // Двойной тап — открываем ссылку
+        lastTapEventId = null;
         lastTapTime = 0;
         if (evt.link) {
           window.open(evt.link, "_blank");
         }
       } else {
-        // Первый тап — просто запоминаем
-        lastTapEvent = evt;
+        // Первый тап — запоминаем
+        lastTapEventId = evt.id;
         lastTapTime = now;
       }
     }
-
-    hasDraggedDuringPress = false;
   }
 
-  function handleEventPointerMove(event) {
-    if (!eventLongPressTimer) return;
-    const dx = event.clientX - eventLongPressStartX;
-    const dy = event.clientY - eventLongPressStartY;
-    if (Math.abs(dx) > 15 || Math.abs(dy) > 15) {
-      clearTimeout(eventLongPressTimer);
-      eventLongPressTimer = null;
-      hasDraggedDuringPress = true;
+  // Touch-события для мобильных (только детекция двойного тапа)
+  function handleEventTouchEnd(event, evt) {
+    const now = Date.now();
+    if (lastTapEventId === evt.id && now - lastTapTime < DOUBLE_TAP_DELAY) {
+      // Двойной тап — открываем ссылку
+      lastTapEventId = null;
+      lastTapTime = 0;
+      if (evt.link) {
+        window.open(evt.link, "_blank");
+      }
+    } else {
+      // Первый тап — запоминаем
+      lastTapEventId = evt.id;
+      lastTapTime = now;
     }
   }
 
-  // ─── Drag-to-scroll для пустых областей (только ПК) ──────────
+  // ─── Drag-to-scroll (ПК) ─────────────────────────────────────
+  // Единый обработчик на .gantt-scroll и .header-timescale-scroll.
+  // Перетаскивание работает и по ивентам, и по пустому месту.
+
   function handleDragPointerDown(event) {
     if (event.button !== 0) return;
-    // На мобильных устройствах скролл работает нативно
     if (isTouchDevice) return;
-    // Не перехватываем pointerdown с карточки ивента
-    if (event.target && event.target.closest('.event-card')) return;
     isDragging = true;
     dragStartX = event.clientX;
     dragTarget = event.currentTarget;
@@ -679,7 +595,6 @@
 
   function handleDragPointerMove(event) {
     if (!isDragging || !dragTarget) return;
-    hasDraggedDuringPress = true;
     const dx = event.clientX - dragStartX;
     dragTarget.scrollLeft = dragStartScrollLeft - dx;
     event.preventDefault();
@@ -691,32 +606,7 @@
     dragTarget.style.cursor = '';
     dragTarget.releasePointerCapture?.(event.pointerId);
     dragTarget = null;
-    hasDraggedDuringPress = false;
     event.preventDefault();
-  }
-
-  // ─── Обработчики для пустого места ───────────────────────────
-  let emptyLongPressTimer = null;
-
-  function handleEmptyPointerDown(event) {
-    if (emptyLongPressTimer) clearTimeout(emptyLongPressTimer);
-    emptyLongPressTimer = setTimeout(() => {
-      openEditor();
-    }, 600);
-  }
-
-  function handleEmptyPointerMove(event) {
-    if (emptyLongPressTimer) {
-      clearTimeout(emptyLongPressTimer);
-      emptyLongPressTimer = null;
-    }
-  }
-
-  function handleEmptyPointerUp() {
-    if (emptyLongPressTimer) {
-      clearTimeout(emptyLongPressTimer);
-      emptyLongPressTimer = null;
-    }
   }
 
   // ─── Синхронизация скролла ───────────────────────────────────
@@ -950,7 +840,6 @@
       >
         {#each categories as cat}
           {@const catData = eventsByCategory[cat.id]}
-          <!-- onpointerdown на gantt-row, чтобы вся область строки реагировала на долгое нажатие -->
           <div
             class="gantt-row"
             role="region"
@@ -983,17 +872,12 @@
                       event={evt}
                       color={cat.color}
                       endPortion={getEndPortion(evt)}
-                      // Pointer-события для ПК
+                      selected={selectedEventId === evt.id}
+                      // Pointer-события для ПК (только для детекции двойного тапа и выделения)
                       onpointerdown={(e) => handleEventPointerDown(e, evt)}
-                      onpointermove={handleEventPointerMove}
                       onpointerup={(e) => handleEventPointerUp(e, evt)}
-                      onpointerleave={(e) => handleEventPointerUp(e, evt)}
-                      onpointercancel={(e) => handleEventPointerUp(e, evt)}
-                      // Touch-события для реальных мобильных устройств
-                      ontouchstart={(e) => handleEventTouchStart(e, evt)}
-                      ontouchmove={handleEventTouchMove}
+                      // Touch-события для мобильных (только для детекции двойного тапа)
                       ontouchend={(e) => handleEventTouchEnd(e, evt)}
-                      ontouchcancel={handleEventTouchCancel}
                     />
                   </div>
                 {/each}

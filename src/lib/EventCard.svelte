@@ -3,14 +3,10 @@
     event,
     color = "#64748b",
     endPortion = 1,
+    selected = false,
     onpointerdown,
     onpointerup,
-    onpointerleave,
-    onpointercancel,
-    ontouchstart,
-    ontouchmove,
     ontouchend,
-    ontouchcancel,
   } = $props();
 
   // Светлая версия цвета для периода после набора (end → deadline)
@@ -29,30 +25,18 @@
     const d = new Date(value);
     return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" });
   }
-
-  function handleKeyDown(e) {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      // Двойной тап/клик теперь обрабатывается в ArtGantt через pointerup
-    }
-  }
 </script>
 
 <div
   class="event-card"
+  class:event-card-selected={selected}
   role="button"
   tabindex="0"
   aria-label="{event.text}, {formatDate(event.start)} — {formatDate(event.deadline)}"
   style="border-left-color: {color}"
   {onpointerdown}
   {onpointerup}
-  {onpointerleave}
-  {onpointercancel}
-  {ontouchstart}
-  {ontouchmove}
   {ontouchend}
-  {ontouchcancel}
-  onkeydown={handleKeyDown}
 >
   <!-- Двухцветный фон: если есть набор — левая часть яркая, правая светлая -->
   {#if event.hasSet}
@@ -106,6 +90,12 @@
 
   .event-card:active {
     transform: scale(0.98);
+  }
+
+  /* Выделение рамкой при выборе */
+  .event-card-selected {
+    outline: 2px solid #3b82f6;
+    outline-offset: 1px;
   }
 
   /* Двухцветные сегменты фона */
