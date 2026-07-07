@@ -118,8 +118,10 @@
   }
 
   /* Контент поверх фона — строка */
+  /* Используем position: sticky вместо JS-управления left для
+     идеальной синхронизации с горизонтальным скроллом */
   .card-content {
-    position: absolute;
+    position: sticky;
     left: 0;
     top: 0;
     bottom: 0;

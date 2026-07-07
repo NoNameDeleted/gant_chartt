@@ -677,7 +677,6 @@
     if (ganttLabelsEl) {
       ganttLabelsEl.scrollTop = ganttBodyEl?.scrollTop ?? 0;
     }
-    updateStickyLabels();
   }
 
   function handleLabelsScroll() {
@@ -687,46 +686,11 @@
     isSyncing = false;
   }
 
+  // Функция больше не нужна — sticky для месяцев и карточек
+  // реализован через CSS position: sticky.
+  // Оставлена как заглушка на случай, если понадобится в будущем.
   function updateStickyLabels() {
-    if (!ganttBodyEl) return;
-    const containerRect = ganttBodyEl.getBoundingClientRect();
-
-    // Sticky для карточек ивентов
-    const cards = ganttBodyEl.querySelectorAll('.event-card');
-    for (const card of cards) {
-      const content = card.querySelector('.card-content');
-      if (content) {
-        const cardRect = card.getBoundingClientRect();
-        const minOffset = Math.max(0, containerRect.left - cardRect.left);
-        const contentWidth = content.offsetWidth;
-        const cardWidth = cardRect.width;
-        const maxOffset = Math.max(0, cardWidth - contentWidth);
-        const offset = Math.min(minOffset, maxOffset);
-        content.style.left = offset + 'px';
-      }
-    }
-
-    // Sticky для названий месяцев в шапке
-    const headerScrollEl = ganttBodyEl?.querySelector('.header-timescale-scroll');
-    if (headerScrollEl) {
-      // Точка прилипания — правый край колонки "Категория" (или левый край скролла, если колонки нет)
-      const stickyLeft = headerCornerEl
-        ? headerCornerEl.getBoundingClientRect().right
-        : headerScrollEl.getBoundingClientRect().left;
-      const monthLabels = headerScrollEl.querySelectorAll('.timescale-month-label');
-      for (const label of monthLabels) {
-        const monthEl = label.closest('.timescale-month');
-        if (monthEl) {
-          const monthRect = monthEl.getBoundingClientRect();
-          const labelWidth = label.offsetWidth;
-          const monthWidth = monthRect.width;
-          const minOffset = Math.max(0, stickyLeft - monthRect.left);
-          const maxOffset = Math.max(0, monthWidth - labelWidth);
-          const offset = Math.min(minOffset, maxOffset);
-          label.style.left = offset + 'px';
-        }
-      }
-    }
+    // Больше не управляем left через JS — это делает CSS position: sticky
   }
 
   // ─── Высота контейнера ───────────────────────────────────────
@@ -741,9 +705,8 @@
       initialScrolled = true;
       requestAnimationFrame(() => {
         ganttBodyEl.scrollLeft = scrollToCurrentMonth + 800;
-        // Шапка внутри того же контейнера — синхронизация не нужна
-        // Вызываем sticky-эффект после скролла
-        setTimeout(() => updateStickyLabels(), 100);
+        // Шапка и ивенты внутри того же контейнера — синхронизация не нужна,
+        // sticky реализован через CSS
       });
     }
   });
@@ -1026,7 +989,8 @@
   }
 
   .timescale-month-label {
-    position: relative;
+    position: sticky;
+    left: 0;
     z-index: 5;
     background: #f1f5f9;
     padding: 0 14px;
