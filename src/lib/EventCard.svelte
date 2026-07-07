@@ -95,6 +95,7 @@
   .event-card-selected {
     outline: 2px solid #3b82f6;
     outline-offset: 1px;
+    z-index: 1;
   }
 
   /* Двухцветные сегменты фона */

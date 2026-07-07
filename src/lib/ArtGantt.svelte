@@ -937,6 +937,7 @@
                 {#each lane as evt (evt.id)}
                   <div
                     class="event-positioner"
+                    class:event-positioner-selected={selectedEventId === evt.id}
                     style="left: {getEventLeft(evt)}px; width: {getEventWidth(evt)}px; top: {laneIdx * LANE_HEIGHT + 4}px; height: {LANE_HEIGHT - 2}px"
                   >
                     <EventCard
@@ -1246,6 +1247,13 @@
     position: absolute;
     padding: 0 2px;
     box-sizing: border-box;
+  }
+
+  /* Увеличение ширины выделенного ивента в 1.5 раза */
+  .event-positioner-selected {
+    transform: scaleX(1.5);
+    transform-origin: left center;
+    z-index: 5;
   }
 
   /* ─── КНОПКИ В ПРАВОМ ВЕРХНЕМ УГЛУ ───────────────────────── */
