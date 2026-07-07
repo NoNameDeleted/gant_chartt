@@ -1064,7 +1064,7 @@
 
   .timescale-months {
     display: flex;
-    height: 56px;
+    height: 24px;
     border-bottom: 1px solid #e2e8f0;
     background: #f1f5f9;
   }
