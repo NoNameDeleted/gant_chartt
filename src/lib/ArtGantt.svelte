@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import EventCard from "./EventCard.svelte";
   import EventEditor from "./EventEditor.svelte";
+  import { openLink } from "./telegram.js";
 
   // ─── Категории ───────────────────────────────────────────────
   const categories = [
@@ -584,7 +585,7 @@
         lastTapEventId = null;
         lastTapTime = 0;
         if (evt.link) {
-          window.open(evt.link, "_blank");
+          openLink(evt.link);
         }
       } else {
         // Первый тап — запоминаем
@@ -602,7 +603,7 @@
       lastTapEventId = null;
       lastTapTime = 0;
       if (evt.link) {
-        window.open(evt.link, "_blank");
+        openLink(evt.link);
       }
     } else {
       // Первый тап — запоминаем
@@ -780,7 +781,7 @@
       <button
         class="header-action-btn link-event-btn"
         class:link-event-btn-pressed={linkBtnPressed}
-        onclick={() => lastClickedEvent?.link && window.open(lastClickedEvent.link, "_blank")}
+        onclick={() => lastClickedEvent?.link && openLink(lastClickedEvent.link)}
         disabled={!lastClickedEvent?.link}
         aria-label="Открыть ссылку ивента"
       >
