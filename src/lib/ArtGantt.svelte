@@ -549,19 +549,6 @@
       if (hasDraggedDuringPress) return;
       openEditor(evt);
     }, 600);
-
-    // Детекция двойного тапа
-    const now = Date.now();
-    if (lastTapEvent === evt && now - lastTapTime < DOUBLE_TAP_DELAY) {
-      lastTapEvent = null;
-      lastTapTime = 0;
-      if (evt.link) {
-        window.open(evt.link, "_blank");
-      }
-    } else {
-      lastTapEvent = evt;
-      lastTapTime = now;
-    }
   }
 
   function handleEventTouchMove(event) {
@@ -577,7 +564,25 @@
     }
   }
 
-  function handleEventTouchEnd(event) {
+  function handleEventTouchEnd(event, evt) {
+    // Если был long-press (таймер сработал) — не открываем ссылку
+    if (!eventLongPressTimer && !hasDraggedDuringPress) {
+      // Long-press НЕ сработал и не было перетаскивания — это обычный тап
+      // Детекция двойного тапа
+      const now = Date.now();
+      if (lastTapEvent === evt && now - lastTapTime < DOUBLE_TAP_DELAY) {
+        // Двойной тап — открываем ссылку
+        lastTapEvent = null;
+        lastTapTime = 0;
+        if (evt.link) {
+          window.open(evt.link, "_blank");
+        }
+      } else {
+        lastTapEvent = evt;
+        lastTapTime = now;
+      }
+    }
+
     if (eventLongPressTimer) {
       clearTimeout(eventLongPressTimer);
       eventLongPressTimer = null;
@@ -979,7 +984,7 @@
                       // Touch-события для реальных мобильных устройств
                       ontouchstart={(e) => handleEventTouchStart(e, evt)}
                       ontouchmove={handleEventTouchMove}
-                      ontouchend={handleEventTouchEnd}
+                      ontouchend={(e) => handleEventTouchEnd(e, evt)}
                       ontouchcancel={handleEventTouchCancel}
                     />
                   </div>
