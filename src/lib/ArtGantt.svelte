@@ -677,6 +677,7 @@
     if (ganttLabelsEl) {
       ganttLabelsEl.scrollTop = ganttBodyEl?.scrollTop ?? 0;
     }
+    updateStickyLabels();
   }
 
   function handleLabelsScroll() {
@@ -686,11 +687,27 @@
     isSyncing = false;
   }
 
-  // Функция больше не нужна — sticky для месяцев и карточек
-  // реализован через CSS position: sticky.
-  // Оставлена как заглушка на случай, если понадобится в будущем.
+  // Управляет sticky-позиционированием текста карточек ивентов
+  // через JS (position: absolute + left). Для месяцев sticky работает
+  // через CSS position: sticky.
   function updateStickyLabels() {
-    // Больше не управляем left через JS — это делает CSS position: sticky
+    if (!ganttBodyEl) return;
+    const containerRect = ganttBodyEl.getBoundingClientRect();
+
+    // Sticky для карточек ивентов
+    const cards = ganttBodyEl.querySelectorAll('.event-card');
+    for (const card of cards) {
+      const content = card.querySelector('.card-content');
+      if (content) {
+        const cardRect = card.getBoundingClientRect();
+        const minOffset = Math.max(0, containerRect.left - cardRect.left);
+        const contentWidth = content.offsetWidth;
+        const cardWidth = cardRect.width;
+        const maxOffset = Math.max(0, cardWidth - contentWidth);
+        const offset = Math.min(minOffset, maxOffset);
+        content.style.left = offset + 'px';
+      }
+    }
   }
 
   // ─── Высота контейнера ───────────────────────────────────────
@@ -705,8 +722,8 @@
       initialScrolled = true;
       requestAnimationFrame(() => {
         ganttBodyEl.scrollLeft = scrollToCurrentMonth + 800;
-        // Шапка и ивенты внутри того же контейнера — синхронизация не нужна,
-        // sticky реализован через CSS
+        // Вызываем sticky-эффект после скролла
+        setTimeout(() => updateStickyLabels(), 100);
       });
     }
   });

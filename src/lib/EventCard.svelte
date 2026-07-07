@@ -77,10 +77,7 @@
     border-left: 3px solid;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     cursor: pointer;
-    /* position: relative убран — .card-content использует position: sticky
-       относительно .gantt-scroll для синхронного движения с месяцами.
-       Фоновые сегменты (.card-bg-segment) позиционируются относительно
-       .event-positioner (position: absolute), что корректно. */
+    position: relative;
     user-select: none;
     -webkit-user-select: none;
     touch-action: manipulation;
@@ -121,11 +118,8 @@
   }
 
   /* Контент поверх фона — строка */
-  /* position: sticky + left: 0 прибивает текст к левому краю окна
-     при горизонтальном скролле — синхронно с названиями месяцев.
-     Без JS-задержек, чисто CSS. */
   .card-content {
-    position: sticky;
+    position: absolute;
     left: 0;
     top: 0;
     bottom: 0;
