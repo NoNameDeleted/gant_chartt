@@ -618,27 +618,31 @@
       if (hasDraggedDuringPress) return;
       openEditor(evt);
     }, 600);
-
-    // Детекция двойного тапа
-    const now = Date.now();
-    if (lastTapEvent === evt && now - lastTapTime < DOUBLE_TAP_DELAY) {
-      lastTapEvent = null;
-      lastTapTime = 0;
-      if (evt.link) {
-        window.open(evt.link, "_blank");
-      }
-    } else {
-      lastTapEvent = evt;
-      lastTapTime = now;
-    }
   }
 
-  function handleEventPointerUp(event) {
+  function handleEventPointerUp(event, evt) {
     if (event) event.stopPropagation();
     if (eventLongPressTimer) {
       clearTimeout(eventLongPressTimer);
       eventLongPressTimer = null;
     }
+
+    // Если long-press НЕ сработал и не было перетаскивания — детектируем двойной тап
+    if (!hasDraggedDuringPress && evt) {
+      const now = Date.now();
+      if (lastTapEvent === evt && now - lastTapTime < DOUBLE_TAP_DELAY) {
+        // Двойной тап — открываем ссылку
+        lastTapEvent = null;
+        lastTapTime = 0;
+        if (evt.link) {
+          window.open(evt.link, "_blank");
+        }
+      } else {
+        lastTapEvent = evt;
+        lastTapTime = now;
+      }
+    }
+
     hasDraggedDuringPress = false;
   }
 
@@ -978,9 +982,9 @@
                       // Pointer-события для ПК
                       onpointerdown={(e) => handleEventPointerDown(e, evt)}
                       onpointermove={handleEventPointerMove}
-                      onpointerup={handleEventPointerUp}
-                      onpointerleave={handleEventPointerUp}
-                      onpointercancel={handleEventPointerUp}
+                      onpointerup={(e) => handleEventPointerUp(e, evt)}
+                      onpointerleave={(e) => handleEventPointerUp(e, evt)}
+                      onpointercancel={(e) => handleEventPointerUp(e, evt)}
                       // Touch-события для реальных мобильных устройств
                       ontouchstart={(e) => handleEventTouchStart(e, evt)}
                       ontouchmove={handleEventTouchMove}
