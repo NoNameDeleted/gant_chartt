@@ -536,7 +536,7 @@
   // ─── Коэффициент ускорения скролла колёсиком ─────────────────
   // Telegram Web App на ПК замедляет wheel-события, поэтому
   // умножаем deltaY на этот коэффициент для компенсации.
-  const SCROLL_SPEED_MULTIPLIER = 2;
+  const SCROLL_SPEED_MULTIPLIER = 1;
 
   // ─── Drag-to-scroll состояние ────────────────────────────────
   let isDragging = $state(false);
