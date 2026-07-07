@@ -659,36 +659,24 @@
     // Умножаем deltaY на коэффициент ускорения
     const scrollAmount = event.deltaY * SCROLL_SPEED_MULTIPLIER;
     ganttBodyEl.scrollTop += scrollAmount;
-    // Синхронизируем скролл лейблов
-    if (ganttLabelsEl) {
-      ganttLabelsEl.scrollTop = ganttBodyEl.scrollTop;
-    }
+    // Вертикальный скролл лейблов синхронизируется через handleBodyScroll (onscroll)
     event.preventDefault();
   }
 
   // ─── Синхронизация скролла ───────────────────────────────────
-  let headerScrollEl = $state(null);
+  // ВАЖНО: Горизонтальный скролл теперь единый — через ganttBodyEl.
+  // Шапка (header-timescale-scroll) привязана к тому же скроллу через CSS
+  // (position: sticky + overflow: clip), поэтому JS-синхронизация не нужна.
+  // Вертикальный скролл лейблов синхронизируем с телом.
   let headerCornerEl = $state(null);
   let ganttBodyEl = $state(null);
   let ganttLabelsEl = $state(null);
   let isSyncing = false;
 
-  function handleHeaderScroll() {
-    if (isSyncing || !ganttBodyEl) return;
-    isSyncing = true;
-    ganttBodyEl.scrollLeft = headerScrollEl?.scrollLeft ?? 0;
-    isSyncing = false;
-    updateStickyLabels();
-  }
-
   function handleBodyScroll() {
-    if (isSyncing || !headerScrollEl) return;
-    isSyncing = true;
-    headerScrollEl.scrollLeft = ganttBodyEl.scrollLeft;
     if (ganttLabelsEl) {
-      ganttLabelsEl.scrollTop = ganttBodyEl.scrollTop;
+      ganttLabelsEl.scrollTop = ganttBodyEl?.scrollTop ?? 0;
     }
-    isSyncing = false;
     updateStickyLabels();
   }
 
@@ -719,6 +707,7 @@
     }
 
     // Sticky для названий месяцев в шапке
+    const headerScrollEl = ganttBodyEl?.querySelector('.header-timescale-scroll');
     if (headerScrollEl) {
       // Точка прилипания — правый край колонки "Категория" (или левый край скролла, если колонки нет)
       const stickyLeft = headerCornerEl
@@ -752,10 +741,7 @@
       initialScrolled = true;
       requestAnimationFrame(() => {
         ganttBodyEl.scrollLeft = scrollToCurrentMonth + 800;
-        // Синхронизируем хедер
-        if (headerScrollEl) {
-          headerScrollEl.scrollLeft = scrollToCurrentMonth + 800;
-        }
+        // Шапка внутри того же контейнера — синхронизация не нужна
         // Вызываем sticky-эффект после скролла
         setTimeout(() => updateStickyLabels(), 100);
       });
@@ -835,55 +821,12 @@
       </div>
     {/if}
 
-    <!-- ─── ШАПКА: ВРЕМЕННАЯ ШКАЛА ──────────────────────────── -->
-    <div class="gantt-header">
-      <div
-        class="header-timescale-scroll"
-        bind:this={headerScrollEl}
-        onscroll={handleHeaderScroll}
-        onwheel={handleWheel}
-        onpointerdown={handleDragPointerDown}
-        onpointermove={handleDragPointerMove}
-        onpointerup={handleDragPointerUp}
-        onpointerleave={handleDragPointerUp}
-        onpointercancel={handleDragPointerUp}
-      >
-        <div class="header-corner" bind:this={headerCornerEl}>
-          <span class="header-corner-text">Категория</span>
-        </div>
-        <div class="header-timescale" style="width: {TOTAL_DAYS * DAY_WIDTH}px">
-          <!-- Строка месяцев -->
-          <div class="timescale-months">
-            {#each months as month}
-              <div
-                class="timescale-month"
-                style="width: {month.days.length * DAY_WIDTH}px"
-              >
-                <span class="timescale-month-label">{month.label}</span>
-              </div>
-            {/each}
-          </div>
-          <!-- Строка дней -->
-          <div class="timescale-days">
-            {#each days as day}
-              <div
-                class="timescale-day"
-                class:weekend={day.getDay() === 0 || day.getDay() === 6}
-                style="width: {DAY_WIDTH}px"
-              >
-                {day.getDate()}
-              </div>
-            {/each}
-          </div>
-          <!-- Вертикальная линия "сегодня" в шапке -->
-          <div class="today-line-header" style="left: {todayPosition}px"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ─── ТЕЛО: СТРОКИ КАТЕГОРИЙ ──────────────────────────── -->
+    <!-- ─── ТЕЛО: ЕДИНЫЙ СКРОЛЛ-КОНТЕЙНЕР (шапка + строки) ── -->
+    <!-- Весь горизонтальный скролл происходит здесь, через ganttBodyEl.
+         Шапка приклеена сверху через position: sticky, поэтому скроллится
+         синхронно с телом — без JS-синхронизации. -->
     <div class="gantt-body">
-      <!-- Фиксированная колонка с названиями категорий -->
+      <!-- Фиксированная колонка с названиями категорий (вертикальный скролл) -->
       <div class="gantt-labels" bind:this={ganttLabelsEl} onscroll={handleLabelsScroll}>
         {#each categories as cat}
           {@const catData = eventsByCategory[cat.id]}
@@ -898,7 +841,7 @@
         {/each}
       </div>
 
-      <!-- Скроллируемая часть с событиями -->
+      <!-- Единый скроллящийся контейнер: шапка + строки ивентов -->
       <div
         class="gantt-scroll"
         bind:this={ganttBodyEl}
@@ -910,6 +853,43 @@
         onpointerleave={handleDragPointerUp}
         onpointercancel={handleDragPointerUp}
       >
+        <!-- ─── ШАПКА: ВРЕМЕННАЯ ШКАЛА (sticky сверху) ──────── -->
+        <div class="gantt-header">
+          <div class="header-corner" bind:this={headerCornerEl}>
+            <span class="header-corner-text">Категория</span>
+          </div>
+          <div class="header-timescale-scroll">
+            <div class="header-timescale" style="width: {TOTAL_DAYS * DAY_WIDTH}px">
+              <!-- Строка месяцев -->
+              <div class="timescale-months">
+                {#each months as month}
+                  <div
+                    class="timescale-month"
+                    style="width: {month.days.length * DAY_WIDTH}px"
+                  >
+                    <span class="timescale-month-label">{month.label}</span>
+                  </div>
+                {/each}
+              </div>
+              <!-- Строка дней -->
+              <div class="timescale-days">
+                {#each days as day}
+                  <div
+                    class="timescale-day"
+                    class:weekend={day.getDay() === 0 || day.getDay() === 6}
+                    style="width: {DAY_WIDTH}px"
+                  >
+                    {day.getDate()}
+                  </div>
+                {/each}
+              </div>
+              <!-- Вертикальная линия "сегодня" в шапке -->
+              <div class="today-line-header" style="left: {todayPosition}px"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── СТРОКИ КАТЕГОРИЙ ────────────────────────────── -->
         {#each categories as cat}
           {@const catData = eventsByCategory[cat.id]}
           <div
@@ -983,7 +963,7 @@
     position: relative;
   }
 
-  /* ─── ШАПКА ──────────────────────────────────────────────── */
+  /* ─── ШАПКА (внутри единого скролл-контейнера) ──────────── */
   .gantt-header {
     display: flex;
     flex-shrink: 0;
@@ -992,6 +972,8 @@
     position: sticky;
     top: 0;
     z-index: 10;
+    /* Шапка не скроллится сама — она двигается за счёт родительского .gantt-scroll */
+    overflow: visible;
   }
 
   .header-corner {
@@ -1015,19 +997,9 @@
 
   .header-timescale-scroll {
     flex: 1;
-    overflow-x: auto;
-    overflow-y: hidden;
     display: flex;
-    scrollbar-width: none;
-    cursor: grab;
-  }
-
-  .header-timescale-scroll:active {
-    cursor: grabbing;
-  }
-
-  .header-timescale-scroll::-webkit-scrollbar {
-    display: none;
+    /* Без overflow — скролл идёт через родительский .gantt-scroll */
+    overflow: visible;
   }
 
   .header-timescale {
@@ -1101,6 +1073,9 @@
     flex: 1;
     display: flex;
     overflow: hidden;
+    /* min-height: 0 важно для flex-контейнера, чтобы дочерний .gantt-scroll
+       мог корректно сжиматься по вертикали */
+    min-height: 0;
   }
 
   .gantt-labels {
@@ -1124,6 +1099,8 @@
     display: flex;
     flex-direction: column;
     cursor: grab;
+    /* Единый скролл-контейнер: шапка (sticky) + строки ивентов */
+    position: relative;
   }
 
   .gantt-scroll:active {
@@ -1133,6 +1110,8 @@
   .gantt-row {
     position: relative;
     border-bottom: 1px solid #f1f5f9;
+    /* Ширина равна ширине внутреннего контента (row-events),
+       но не меньше ширины родителя */
     width: fit-content;
     min-width: 100%;
   }
