@@ -627,17 +627,21 @@
       eventLongPressTimer = null;
     }
 
-    // Если long-press НЕ сработал и не было перетаскивания — детектируем двойной тап
+    // Детекция двойного тапа: первый тап запоминает ивент и время,
+    // второй тап (в течение DOUBLE_TAP_DELAY) открывает ссылку.
+    // Используем lastTapEvent как флаг "предыдущего тапа":
+    // если lastTapEvent === evt — это второй тап по тому же ивенту
     if (!hasDraggedDuringPress && evt) {
       const now = Date.now();
       if (lastTapEvent === evt && now - lastTapTime < DOUBLE_TAP_DELAY) {
-        // Двойной тап — открываем ссылку
+        // Второй тап — открываем ссылку
         lastTapEvent = null;
         lastTapTime = 0;
         if (evt.link) {
           window.open(evt.link, "_blank");
         }
       } else {
+        // Первый тап — просто запоминаем
         lastTapEvent = evt;
         lastTapTime = now;
       }
