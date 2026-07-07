@@ -99,7 +99,11 @@ export async function getYdb() {
     console.log('[ydb] driver.ready() успешно завершён');
   } catch (err) {
     console.error('[ydb] driver.ready() ОШИБКА:', err);
-    throw err;
+    // Не пробрасываем ошибку дальше — даём шанс работать с fallback-данными
+    // throw err;
+    // Не кешируем null — при следующем вызове попробуем снова
+    driver = null;
+    return null;
   }
 
   console.log('[ydb] Создаю query...');

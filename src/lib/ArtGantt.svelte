@@ -580,6 +580,9 @@
     isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   });
 
+  // ─── Показывать/скрывать мобильные разделители категорий ────
+  let showMobileCategories = $state(true);
+
   // ─── Детекция двойного тапа ──────────────────────────────────
   let lastTapEventId = null;
   let lastTapTime = 0;
@@ -812,6 +815,26 @@
       >
         +
       </button>
+      <!-- Кнопка скрытия/показа категорий (только на телефонах) -->
+      <button
+        class="header-action-btn toggle-categories-btn"
+        class:toggle-categories-btn-hidden={!showMobileCategories}
+        onclick={() => showMobileCategories = !showMobileCategories}
+        aria-label="Показать или скрыть категории"
+      >
+        {#if showMobileCategories}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="9" y1="3" x2="9" y2="21"/>
+          </svg>
+        {:else}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="3" y1="9" x2="21" y2="9"/>
+            <line x1="3" y1="15" x2="21" y2="15"/>
+          </svg>
+        {/if}
+      </button>
     </div>
 
     {#if editorOpen}
@@ -911,6 +934,17 @@
         <!-- ─── СТРОКИ КАТЕГОРИЙ ────────────────────────────── -->
         {#each categories as cat}
           {@const catData = eventsByCategory[cat.id]}
+          <!-- Мобильный разделитель категории (виден только на телефонах) -->
+          <div
+            class="mobile-category-divider"
+            class:mobile-category-divider-hidden={!showMobileCategories}
+            style="border-left-color: {cat.color}"
+          >
+            <span class="mobile-category-dot" style="background: {cat.color}"></span>
+            <span class="mobile-category-label">{cat.label}</span>
+            <span class="mobile-category-count">{catData.lanes.reduce((sum, lane) => sum + lane.length, 0)}</span>
+          </div>
+
           <div
             class="gantt-row"
             role="region"
@@ -1345,6 +1379,11 @@
     transform: scale(0.95);
   }
 
+  /* ─── КНОПКА ПЕРЕКЛЮЧЕНИЯ КАТЕГОРИЙ (ТОЛЬКО ТЕЛЕФОНЫ) ──────── */
+  .toggle-categories-btn {
+    display: none;
+  }
+
   /* ─── СТАТУС-БАР ──────────────────────────────────────────── */
   .status-bar {
     display: flex;
@@ -1436,6 +1475,11 @@
     user-select: none;
   }
 
+  /* ─── МОБИЛЬНЫЙ РАЗДЕЛИТЕЛЬ КАТЕГОРИИ ────────────────────── */
+  .mobile-category-divider {
+    display: none;
+  }
+
   /* ─── МОБИЛЬНАЯ АДАПТАЦИЯ ────────────────────────────────── */
   @media (max-width: 768px) {
     .gantt-left-column {
@@ -1444,6 +1488,85 @@
 
     .gantt-header {
       border-bottom: 1px solid #e2e8f0;
+    }
+
+    /* Мобильный разделитель категории — полноширинная плашка между строками */
+    .mobile-category-divider {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      margin: 0;
+      box-sizing: border-box;
+      background: #f1f5f9;
+      border-bottom: 2px solid #e2e8f0;
+      border-left: 4px solid;
+      border-left-color: inherit;
+      /* На всю ширину экрана, приклеен к левому краю */
+      position: sticky;
+      left: 0;
+      z-index: 5;
+      width: 100vw;
+      min-width: 100vw;
+      flex-shrink: 0;
+    }
+
+    /* Скрытое состояние разделителя */
+    .mobile-category-divider-hidden {
+      display: none;
+    }
+
+    /* Кнопка переключения категорий — видна только на телефонах */
+    .toggle-categories-btn {
+      display: flex;
+      background: #3b82f6;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+    }
+
+    .toggle-categories-btn:hover:not(:disabled) {
+      background: #2563eb;
+      transform: scale(1.08);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
+    }
+
+    .toggle-categories-btn:active:not(:disabled) {
+      transform: scale(0.95);
+    }
+
+    /* Состояние когда категории скрыты — кнопка выглядит иначе */
+    .toggle-categories-btn-hidden {
+      background: #64748b;
+      box-shadow: 0 2px 8px rgba(100, 116, 139, 0.4);
+    }
+
+    .toggle-categories-btn-hidden:hover:not(:disabled) {
+      background: #475569;
+    }
+
+    .mobile-category-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .mobile-category-label {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .mobile-category-count {
+      margin-left: auto;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #475569;
+      background: rgba(255, 255, 255, 0.7);
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
     }
 
     .zoom-controls {
