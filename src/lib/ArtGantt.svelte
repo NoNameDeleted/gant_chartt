@@ -1251,7 +1251,7 @@
   /* ─── КНОПКИ В ПРАВОМ ВЕРХНЕМ УГЛУ ───────────────────────── */
   .header-actions {
     position: absolute;
-    top: 8px;
+    top: 52px; /* 48px (шапка) + 4px отступ */
     right: 12px;
     z-index: 50;
     display: flex;
