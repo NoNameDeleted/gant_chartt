@@ -155,4 +155,22 @@
     white-space: nowrap;
     font-weight: 500;
   }
+  /* ─── МОБИЛЬНЫЕ УСТРОЙСТВА: отключаем анимации ────────────── */
+  @media (hover: none) and (pointer: coarse) {
+    .event-card {
+      transition: none;
+    }
+
+    .event-card:hover {
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .event-card:active {
+      transform: none;
+    }
+
+    .card-content {
+      transition: none;
+    }
+  }
 </style>
