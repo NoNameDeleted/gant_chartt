@@ -525,6 +525,9 @@
 
   function handleEventPointerDown(event, evt) {
     event.stopPropagation();
+    // Предотвращаем всплытие к родительскому gantt-scroll, чтобы drag-to-scroll
+    // не перехватил pointerdown на мобильных устройствах
+    event.preventDefault();
     // Запоминаем последний кликнутый ивент для кнопки редактирования ✏️
     lastClickedEvent = evt;
     // Захватываем указатель, чтобы pointermove продолжал приходить даже за пределами карточки
@@ -580,7 +583,9 @@
     if (!eventLongPressTimer && !isDragging) return;
     const dx = event.clientX - eventLongPressStartX;
     const dy = event.clientY - eventLongPressStartY;
-    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+    // На мобильных устройствах палец менее стабилен, поэтому увеличиваем порог
+    // с 10px до 15px, чтобы случайное дрожание не отменяло long-press
+    if (Math.abs(dx) > 15 || Math.abs(dy) > 15) {
       clearTimeout(eventLongPressTimer);
       eventLongPressTimer = null;
     }
@@ -593,6 +598,10 @@
   // ─── Drag-to-scroll для пустых областей (gantt-scroll и header) ──
   function handleDragPointerDown(event) {
     if (event.button !== 0) return;
+    // Не перехватываем pointerdown, если он пришёл с карточки ивента —
+    // это важно для мобильных устройств, где event.preventDefault() в
+    // handleEventPointerDown может не сработать (особенно в WebView Telegram)
+    if (event.target && event.target.closest('.event-card')) return;
     isDragging = true;
     dragStartX = event.clientX;
     dragTarget = event.currentTarget;
@@ -625,8 +634,9 @@
   let emptyLongPressTimer = null;
 
   function handleEmptyPointerDown(event) {
-    // Отменяем скролл/контекстное меню браузера при долгом нажатии
-    event.preventDefault();
+    // НЕ вызываем event.preventDefault() — на мобильных устройствах это блокирует
+    // pointer-события и мешает long-press. Контекстное меню браузера при долгом
+    // нажатии на пустое место не критично.
     if (emptyLongPressTimer) clearTimeout(emptyLongPressTimer);
     emptyLongPressTimer = setTimeout(() => {
       openEditor();
