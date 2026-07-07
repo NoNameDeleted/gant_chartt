@@ -72,7 +72,7 @@
     width: 100%;
     height: 100%;
     box-sizing: border-box;
-    border-radius: 0.4rem;
+    border-radius: 0.25rem;
     border: 1px solid #e2e8f0;
     border-left: 3px solid;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -125,7 +125,7 @@
     top: 0;
     bottom: 0;
     z-index: 2;
-    padding: 0.2rem 0.5rem;
+    padding: 0.05rem 0.5rem;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -141,7 +141,7 @@
     font-size: 0.8rem;
     color: #0f172a;
     white-space: nowrap;
-    line-height: 1.3;
+    line-height: 1.1;
   }
 
   .event-dates {
@@ -149,5 +149,6 @@
     color: #475569;
     white-space: nowrap;
     font-weight: 500;
+    line-height: 1.1;
   }
 </style>

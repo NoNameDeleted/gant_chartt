@@ -180,7 +180,7 @@
   // ─── Временная шкала ─────────────────────────────────────────
   const DAY_MS = 86400000;
   const DAY_WIDTH = 40;
-  const LANE_HEIGHT = 52; // высота одной подстроки
+  const LANE_HEIGHT = 28; // высота одной подстроки
 
   // Русские названия месяцев
   const MONTH_NAMES = [
@@ -813,7 +813,7 @@
             {@const catData = eventsByCategory[cat.id]}
             <div
               class="row-label"
-              style="min-height: {Math.max(catData.totalLanes * LANE_HEIGHT + 16, 60)}px"
+              style="min-height: {Math.max(catData.totalLanes * LANE_HEIGHT + 8, 44)}px"
             >
               <span class="row-label-dot" style="background: {cat.color}"></span>
               <span class="row-label-text">{cat.label}</span>
@@ -875,7 +875,7 @@
             class="gantt-row"
             role="region"
             aria-label="Строка категории {cat.label}"
-            style="min-height: {Math.max(catData.totalLanes * LANE_HEIGHT + 16, 60)}px"
+            style="min-height: {Math.max(catData.totalLanes * LANE_HEIGHT + 8, 44)}px"
           >
             <!-- Затемнение фона слева от сегодняшней даты (на всю высоту строки) -->
             <div
@@ -897,7 +897,7 @@
                 {#each lane as evt (evt.id)}
                   <div
                     class="event-positioner"
-                    style="left: {getEventLeft(evt)}px; width: {getEventWidth(evt)}px; top: {laneIdx * LANE_HEIGHT + 8}px; height: {LANE_HEIGHT - 4}px"
+                    style="left: {getEventLeft(evt)}px; width: {getEventWidth(evt)}px; top: {laneIdx * LANE_HEIGHT + 4}px; height: {LANE_HEIGHT - 2}px"
                   >
                     <EventCard
                       event={evt}
@@ -1137,7 +1137,7 @@
 
   .row-events {
     position: relative;
-    padding: 8px 0;
+    padding: 4px 0;
     box-sizing: border-box;
     background:
       repeating-linear-gradient(
