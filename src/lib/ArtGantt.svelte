@@ -528,6 +528,9 @@
   function handleEventTouchStart(event, evt) {
     // Предотвращаем скролл и контекстное меню при долгом нажатии
     event.preventDefault();
+    // Блокируем обработку жестов на уровне элемента (важно для Telegram WebView)
+    const target = event.currentTarget;
+    target.style.touchAction = 'none';
     lastClickedEvent = evt;
 
     const touch = event.touches[0];
@@ -573,6 +576,9 @@
       clearTimeout(eventLongPressTimer);
       eventLongPressTimer = null;
     }
+    // Восстанавливаем touch-action после завершения касания
+    const target = event.currentTarget;
+    target.style.touchAction = '';
     hasDraggedDuringPress = false;
   }
 
@@ -581,6 +587,9 @@
       clearTimeout(eventLongPressTimer);
       eventLongPressTimer = null;
     }
+    // Восстанавливаем touch-action после отмены касания
+    const target = event.currentTarget;
+    target.style.touchAction = '';
     hasDraggedDuringPress = false;
   }
 
