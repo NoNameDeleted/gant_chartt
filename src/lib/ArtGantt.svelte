@@ -180,7 +180,6 @@
   // ─── Временная шкала ─────────────────────────────────────────
   const DAY_MS = 86400000;
   const LANE_HEIGHT = 28; // высота одной подстроки
-  const SELECTED_LANE_HEIGHT = 48; // высота подстроки с выделенным ивентом (~1.7x)
 
   // Масштаб: 1.0 = 40px на день
   let scale = $state(1.0);
@@ -333,20 +332,13 @@
         map[evt.category].push(evt);
       }
     }
-    // Преобразуем в { lanes: [[evt,...], ...], totalLanes: number, rowHeight: number }
+    // Преобразуем в { lanes: [[evt,...], ...], totalLanes: number }
     const result = {};
     for (const cat of categories) {
       const lanes = assignLanes(map[cat.id]);
-      // Вычисляем высоту строки с учётом возможного выделенного ивента
-      let rowHeight = 0;
-      for (const lane of lanes) {
-        const hasSelected = lane.some(evt => evt.id === selectedEventId);
-        rowHeight += hasSelected ? SELECTED_LANE_HEIGHT : LANE_HEIGHT;
-      }
       result[cat.id] = {
         lanes,
         totalLanes: lanes.length,
-        rowHeight: rowHeight + 8,
       };
     }
     return result;
@@ -861,7 +853,7 @@
             {@const catData = eventsByCategory[cat.id]}
             <div
               class="row-label"
-              style="min-height: {Math.max(catData.rowHeight, 44)}px"
+              style="min-height: {Math.max(catData.totalLanes * LANE_HEIGHT + 8, 44)}px"
             >
               <span class="row-label-dot" style="background: {cat.color}"></span>
               <span class="row-label-text">{cat.label}</span>
@@ -923,7 +915,7 @@
             class="gantt-row"
             role="region"
             aria-label="Строка категории {cat.label}"
-            style="min-height: {Math.max(catData.rowHeight, 44)}px"
+            style="min-height: {Math.max(catData.totalLanes * LANE_HEIGHT + 8, 44)}px"
           >
             <!-- Затемнение фона слева от сегодняшней даты (на всю высоту строки) -->
             <div
@@ -939,34 +931,27 @@
               class="row-events"
               role="region"
               aria-label="События категории {cat.label}"
-              style="width: {totalDays * dayWidth}px; min-width: {totalDays * dayWidth}px; height: {catData.rowHeight}px"
+              style="width: {totalDays * dayWidth}px; min-width: {totalDays * dayWidth}px"
             >
               {#each catData.lanes as lane, laneIdx}
-                <!-- Контейнер для одной lane с динамической высотой -->
-                <div
-                  class="lane-container"
-                  class:lane-container-selected={lane.some(evt => evt.id === selectedEventId)}
-                  style="top: {laneIdx * LANE_HEIGHT + 4}px; height: {lane.some(evt => evt.id === selectedEventId) ? SELECTED_LANE_HEIGHT - 2 : LANE_HEIGHT - 2}px"
-                >
-                  {#each lane as evt (evt.id)}
-                    <div
-                      class="event-positioner"
-                      style="width: {getEventWidth(evt)}px; height: 100%"
-                    >
-                      <EventCard
-                        event={evt}
-                        color={cat.color}
-                        endPortion={getEndPortion(evt)}
-                        selected={selectedEventId === evt.id}
-                        // Pointer-события для ПК (только для детекции двойного тапа и выделения)
-                        onpointerdown={(e) => handleEventPointerDown(e, evt)}
-                        onpointerup={(e) => handleEventPointerUp(e, evt)}
-                        // Touch-события для мобильных (только для детекции двойного тапа)
-                        ontouchend={(e) => handleEventTouchEnd(e, evt)}
-                      />
-                    </div>
-                  {/each}
-                </div>
+                {#each lane as evt (evt.id)}
+                  <div
+                    class="event-positioner"
+                    style="left: {getEventLeft(evt)}px; width: {getEventWidth(evt)}px; top: {laneIdx * LANE_HEIGHT + 4}px; height: {LANE_HEIGHT - 2}px"
+                  >
+                    <EventCard
+                      event={evt}
+                      color={cat.color}
+                      endPortion={getEndPortion(evt)}
+                      selected={selectedEventId === evt.id}
+                      // Pointer-события для ПК (только для детекции двойного тапа и выделения)
+                      onpointerdown={(e) => handleEventPointerDown(e, evt)}
+                      onpointerup={(e) => handleEventPointerUp(e, evt)}
+                      // Touch-события для мобильных (только для детекции двойного тапа)
+                      ontouchend={(e) => handleEventTouchEnd(e, evt)}
+                    />
+                  </div>
+                {/each}
               {/each}
             </div>
           </div>
@@ -1257,25 +1242,8 @@
     z-index: 3;
   }
 
-  .lane-container {
-    position: absolute;
-    left: 0;
-    right: 0;
-    padding: 0 2px;
-    box-sizing: border-box;
-    transition: height 0.15s ease;
-    z-index: 1;
-  }
-
-  .lane-container-selected {
-    z-index: 5;
-  }
-
   .event-positioner {
     position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
     padding: 0 2px;
     box-sizing: border-box;
   }
