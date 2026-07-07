@@ -1249,10 +1249,10 @@
     box-sizing: border-box;
   }
 
-  /* Увеличение ширины выделенного ивента в 1.5 раза */
+  /* Увеличение высоты выделенного ивента в 1.5 раза */
   .event-positioner-selected {
-    transform: scaleX(1.5);
-    transform-origin: left center;
+    transform: scaleY(1.5);
+    transform-origin: top center;
     z-index: 5;
   }
 
