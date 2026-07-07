@@ -884,7 +884,7 @@
                   <div
                     class="timescale-day"
                     class:weekend={day.getDay() === 0 || day.getDay() === 6}
-                    style="width: {dayWidth}px"
+                    style="width: {dayWidth}px; font-size: {Math.max(0.4, 0.7 * Math.min(1, scale / 0.5))}rem"
                   >
                     {day.getDate()}
                   </div>
@@ -1106,6 +1106,7 @@
     font-size: 0.7rem;
     color: #94a3b8;
     border-right: 1px solid #f1f5f9;
+    background: #ffffff;
   }
 
   .timescale-day.weekend {
