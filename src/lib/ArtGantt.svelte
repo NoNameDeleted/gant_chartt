@@ -507,6 +507,19 @@
   // ─── Выделение ивента рамкой ─────────────────────────────────
   let selectedEventId = $state(null);
 
+  // ─── Анимация кнопки ✏️ при нажатии на ивент ────────────────
+  let editBtnPressed = $state(false);
+  let editBtnPressTimer = null;
+
+  function pressEditButton() {
+    editBtnPressed = true;
+    if (editBtnPressTimer) clearTimeout(editBtnPressTimer);
+    editBtnPressTimer = setTimeout(() => {
+      editBtnPressed = false;
+      editBtnPressTimer = null;
+    }, 150);
+  }
+
   // ─── Drag-to-scroll состояние ────────────────────────────────
   let isDragging = $state(false);
   let dragStartX = 0;
@@ -536,6 +549,8 @@
     // Просто запоминаем, какой ивент нажали (для кнопки ✏️ и выделения)
     lastClickedEvent = evt;
     selectedEventId = evt.id;
+    // Анимируем кнопку ✏️ синхронно с нажатием на ивент
+    pressEditButton();
   }
 
   function handleEventPointerUp(event, evt) {
@@ -732,6 +747,7 @@
     <div class="header-actions">
       <button
         class="header-action-btn edit-event-btn"
+        class:edit-event-btn-pressed={editBtnPressed}
         onclick={() => lastClickedEvent && openEditor(lastClickedEvent)}
         disabled={!lastClickedEvent}
         aria-label="Редактировать ивент"
@@ -1204,6 +1220,11 @@
   }
 
   .edit-event-btn:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  /* Анимация кнопки ✏️ при нажатии на ивент — синхронно с карточкой */
+  .edit-event-btn-pressed {
     transform: scale(0.95);
   }
 
