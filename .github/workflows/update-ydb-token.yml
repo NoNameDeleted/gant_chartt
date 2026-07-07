@@ -29,27 +29,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Yandex Cloud CLI
-        run: |
-          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
-          echo "$HOME/.yandex-cloud/bin" >> $GITHUB_PATH
-
-      - name: Authenticate with Yandex Cloud
+      - name: Install Yandex Cloud CLI and authenticate
         env:
           YC_SERVICE_ACCOUNT_KEY_FILE: /tmp/sa-key.json
         run: |
+          # Устанавливаем YC CLI
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+          
+          # Добавляем yc в PATH для текущего и следующих шагов
+          export PATH="$HOME/yandex-cloud/bin:$PATH"
+          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+          
           # Создаём файл ключа из переменной окружения GitHub Secrets
           echo '${{ secrets.YC_SA_KEY_JSON }}' > /tmp/sa-key.json
-          # yc уже должен быть в PATH после предыдущего шага (через GITHUB_PATH)
+          
+          # Аутентифицируемся
           yc config set service-account-key /tmp/sa-key.json
           yc config set cloud-id '${{ secrets.YC_CLOUD_ID }}'
           yc config set folder-id '${{ secrets.YC_FOLDER_ID }}'
-
-      - name: Get IAM Token
-        id: get-token
-        run: |
+          
+          # Получаем IAM-токен
           TOKEN=$(yc iam create-token)
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
+        id: get-token
 
       - name: Update Vercel Environment Variable
         uses: actions/github-script@v7
