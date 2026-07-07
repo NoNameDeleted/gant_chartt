@@ -77,7 +77,10 @@
     border-left: 3px solid;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     cursor: pointer;
-    position: relative;
+    /* position: relative убран — .card-content использует position: sticky
+       относительно .gantt-scroll для синхронного движения с месяцами.
+       Фоновые сегменты (.card-bg-segment) позиционируются относительно
+       .event-positioner (position: absolute), что корректно. */
     user-select: none;
     -webkit-user-select: none;
     touch-action: manipulation;
@@ -118,13 +121,11 @@
   }
 
   /* Контент поверх фона — строка */
-  /* position: absolute + left: 0 прижимает текст к левому краю карточки.
-     Горизонтальный скролл теперь единый (шапка + тело в одном контейнере),
-     поэтому карточки двигаются синхронно.
-     Sticky-эффект для текста реализован через position: sticky на
-     .event-positioner в ArtGantt.svelte. */
+  /* position: sticky + left: 0 прибивает текст к левому краю окна
+     при горизонтальном скролле — синхронно с названиями месяцев.
+     Без JS-задержек, чисто CSS. */
   .card-content {
-    position: absolute;
+    position: sticky;
     left: 0;
     top: 0;
     bottom: 0;
