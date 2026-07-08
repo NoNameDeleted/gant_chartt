@@ -1,4 +1,4 @@
-name: Update YDB IAM Token
+name: Update YDB IAM Token (Fallback)
 
 on:
   schedule:
@@ -8,7 +8,6 @@ on:
   workflow_dispatch:
 
 env:
-  # Проверяем наличие обязательных секретов на старте
   _HAVE_SECRETS: ${{ secrets.YC_SA_KEY_JSON != '' && secrets.YC_CLOUD_ID != '' && secrets.YC_FOLDER_ID != '' && secrets.VERCEL_TOKEN != '' && secrets.VERCEL_PROJECT_ID != '' }}
 
 jobs:
@@ -18,29 +17,25 @@ jobs:
       - name: Check required secrets
         if: env._HAVE_SECRETS != 'true'
         run: |
-          echo "::error::Отсутствуют обязательные секреты GitHub. Проверьте:"
-          echo "::error::  - YC_SA_KEY_JSON (авторизованный ключ сервисного аккаунта)"
-          echo "::error::  - YC_CLOUD_ID (ID облака)"
-          echo "::error::  - YC_FOLDER_ID (ID каталога)"
-          echo "::error::  - VERCEL_TOKEN (токен Vercel)"
-          echo "::error::  - VERCEL_PROJECT_ID (ID проекта Vercel)"
-          exit 1
+          echo "::warning::Отсутствуют обязательные секреты GitHub."
+          echo "::warning::Этот воркфлоу — fallback. Основная аутентификация идёт через YDB_SA_KEY_JSON."
+          exit 0  # Не блокируем, т.к. это fallback
 
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Yandex Cloud CLI and authenticate
+      - name: Install Yandex Cloud CLI and get IAM token
         env:
           YC_SERVICE_ACCOUNT_KEY_FILE: /tmp/sa-key.json
         run: |
           # Устанавливаем YC CLI
           curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
           
-          # Добавляем yc в PATH для текущего и следующих шагов
+          # Добавляем yc в PATH
           export PATH="$HOME/yandex-cloud/bin:$PATH"
           echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
           
-          # Создаём файл ключа из переменной окружения GitHub Secrets
+          # Создаём файл ключа
           echo '${{ secrets.YC_SA_KEY_JSON }}' > /tmp/sa-key.json
           
           # Аутентифицируемся
@@ -53,7 +48,7 @@ jobs:
           echo "token=$TOKEN" >> $GITHUB_OUTPUT
         id: get-token
 
-      - name: Update Vercel Environment Variable
+      - name: Update Vercel Environment Variable (Fallback)
         uses: actions/github-script@v7
         env:
           YDB_TOKEN: ${{ steps.get-token.outputs.token }}
@@ -64,6 +59,9 @@ jobs:
             const token = process.env.YDB_TOKEN;
             const vercelToken = process.env.VERCEL_TOKEN;
             const projectId = process.env.VERCEL_PROJECT_ID;
+            
+            console.log('Updating YDB_ACCESS_TOKEN_CREDENTIALS as fallback...');
+            console.log('(Primary auth uses YDB_SA_KEY_JSON - permanent key)');
             
             // Получаем список всех переменных окружения
             const listResponse = await fetch(
@@ -81,14 +79,12 @@ jobs:
             }
             
             const listData = await listResponse.json();
-            // Ищем переменную с нужным ключом
             const existingEnv = listData.envs && listData.envs.find(
               env => env.key === 'YDB_ACCESS_TOKEN_CREDENTIALS'
             );
             
             let response;
             if (existingEnv) {
-              // Переменная существует — обновляем через PATCH
               console.log('Updating existing env var, id:', existingEnv.id);
               response = await fetch(
                 `https://api.vercel.com/v10/projects/${projectId}/env/${existingEnv.id}`,
@@ -104,7 +100,6 @@ jobs:
                 }
               );
             } else {
-              // Переменной нет — создаём через POST
               console.log('Creating new env var');
               response = await fetch(
                 `https://api.vercel.com/v10/projects/${projectId}/env`,
@@ -129,36 +124,12 @@ jobs:
               throw new Error(`Vercel API error: ${response.status} ${text}`);
             }
             
-            console.log('Token updated successfully');
+            console.log('Fallback token updated successfully');
 
-      - name: Redeploy Vercel
+      - name: Redeploy Vercel (only if needed)
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          # Используем Vercel API для создания нового деплоя
-          RESPONSE=$(curl -s -X POST \
-            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            "https://api.vercel.com/v13/deployments" \
-            -d "{
-              \"name\": \"gant-chartt\",
-              \"projectId\": \"${{ secrets.VERCEL_PROJECT_ID }}\",
-              \"target\": \"production\",
-              \"gitSource\": {
-                \"type\": \"github\",
-                \"repoId\": \"${{ secrets.VERCEL_PROJECT_ID }}\",
-                \"ref\": \"main\"
-              }
-            }")
-          
-          echo "$RESPONSE" | head -5
-          if echo "$RESPONSE" | grep -q "error"; then
-            echo "::warning::Vercel deploy API warning, trying alternative method..."
-            # Fallback: триггерим деплой через GitHub
-            curl -s -X POST \
-              -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              "https://api.vercel.com/v1/deployments?projectId=${{ secrets.VERCEL_PROJECT_ID }}" \
-              -d '{"target": "production"}'
-          fi
+          echo "Fallback token updated. No redeploy needed - primary auth uses YDB_SA_KEY_JSON."
+          echo "Redeploy only required if YDB_SA_KEY_JSON is missing."
