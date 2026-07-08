@@ -47,22 +47,21 @@ function getCredentialsProvider() {
     'YDB_DATABASE=', env.YDB_DATABASE ? 'есть' : 'нет'
   );
 
-  // Приоритет 1: IAM-токен (не требует обмена, работает без доступа к IAM API)
-  // Используется на Vercel, где iam.api.cloud.yandex.net может быть недоступен.
-  // Токен живёт 12 часов, обновляется через GitHub Action.
+  // Приоритет 1: авторизованный ключ сервисного аккаунта (ПЕРМАНЕНТНОЕ РЕШЕНИЕ)
+  // Ключ НЕ ПРОТУХАЕТ. IamTokenProvider подписывает JWT и обменивает на IAM-токен.
+  // Требует доступа к iam.api.cloud.yandex.net (должен быть доступен на Vercel).
+  if (env.YDB_SA_KEY_JSON) {
+    console.log('[ydb] Выбран IamTokenProvider (авторизованный ключ)');
+    return new IamTokenProvider(env.YDB_SA_KEY_JSON);
+  }
+
+  // Приоритет 2: IAM-токен (живёт 12 часов, требует регулярного обновления)
+  // Используется только если нет авторизованного ключа.
   if (env.YDB_ACCESS_TOKEN_CREDENTIALS) {
     console.log('[ydb] Выбран AccessTokenCredentialsProvider (IAM-токен)');
     return new AccessTokenCredentialsProvider({
       token: env.YDB_ACCESS_TOKEN_CREDENTIALS,
     });
-  }
-
-  // Приоритет 2: авторизованный ключ сервисного аккаунта (перманентное решение)
-  // Требует доступа к iam.api.cloud.yandex.net для обмена JWT на IAM-токен.
-  // Подходит для локальной разработки, где есть доступ к IAM API.
-  if (env.YDB_SA_KEY_JSON) {
-    console.log('[ydb] Выбран IamTokenProvider (авторизованный ключ)');
-    return new IamTokenProvider(env.YDB_SA_KEY_JSON);
   }
 
   // Приоритет 3: Metadata service (только внутри Yandex Cloud)
