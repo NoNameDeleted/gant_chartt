@@ -783,7 +783,7 @@
   });
 </script>
 
-<section class="art-gantt-page" style="height: {containerHeight}px">
+<section class="art-gantt-page" class:editor-active={editorOpen} style="height: {containerHeight}px">
   <div class="gantt-wrapper">
     <!-- ─── КНОПКИ (правый верхний угол) ──────────────────────── -->
     <div class="header-actions">
@@ -1436,6 +1436,10 @@
     border-radius: 10px;
     padding: 4px 6px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .editor-active .zoom-controls {
+    display: none;
   }
 
   .zoom-btn {
